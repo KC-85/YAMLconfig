@@ -5,8 +5,6 @@ class ConfigProject(models.Model):
 	class TargetType(models.TextChoices):
 		DOCKERFILE = "dockerfile", "Dockerfile"
 		DOCKER_COMPOSE = "docker-compose", "Docker Compose"
-		PODMANFILE = "podmanfile", "Podmanfile"
-		PODMAN_COMPOSE = "podman-compose", "Podman Compose"
 
 	name = models.CharField(max_length=120)
 	target_type = models.CharField(
@@ -70,3 +68,51 @@ class ProjectOption(models.Model):
 
 	def __str__(self) -> str:
 		return f"{self.project.name}: {self.key}"
+
+
+class Network(models.Model):
+	project = models.ForeignKey(
+		ConfigProject,
+		on_delete=models.CASCADE,
+		related_name="networks",
+	)
+	name = models.CharField(max_length=120)
+	driver = models.CharField(max_length=100, blank=True)
+	external = models.BooleanField(default=False)
+	attachable = models.BooleanField(default=False)
+	internal = models.BooleanField(default=False)
+	labels = models.JSONField(default=dict, blank=True)
+	driver_opts = models.JSONField(default=dict, blank=True)
+	extra = models.JSONField(default=dict, blank=True)
+
+	class Meta:
+		ordering = ["name"]
+		constraints = [
+			models.UniqueConstraint(fields=["project", "name"], name="uniq_network_per_project"),
+		]
+
+	def __str__(self) -> str:
+		return f"{self.project.name}: network/{self.name}"
+
+
+class NamedVolume(models.Model):
+	project = models.ForeignKey(
+		ConfigProject,
+		on_delete=models.CASCADE,
+		related_name="named_volumes",
+	)
+	name = models.CharField(max_length=120)
+	driver = models.CharField(max_length=100, blank=True)
+	external = models.BooleanField(default=False)
+	labels = models.JSONField(default=dict, blank=True)
+	driver_opts = models.JSONField(default=dict, blank=True)
+	extra = models.JSONField(default=dict, blank=True)
+
+	class Meta:
+		ordering = ["name"]
+		constraints = [
+			models.UniqueConstraint(fields=["project", "name"], name="uniq_named_volume_per_project"),
+		]
+
+	def __str__(self) -> str:
+		return f"{self.project.name}: volume/{self.name}"
