@@ -27,7 +27,7 @@ def project_detail(request: HttpRequest, project_id: int) -> HttpResponse:
     services = project.services.all()
     options = project.options.all()
     networks = project.networks.all()
-    volumes = project.volumes.all()
+    volumes = project.named_volumes.all()
 
     return render(
         request,
