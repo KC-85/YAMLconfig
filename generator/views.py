@@ -120,3 +120,32 @@ def service_delete(request: HttpRequest, project_id: int, service_id: int) -> Ht
         return redirect("generator:project_detail", project_id=project.id)
 
     return render(request, "generator/index.html", {"project": project, "service": service})
+
+
+def option_edit(request: HttpRequest, project_id: int, option_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+    option = get_object_or_404(ProjectOption, id=option_id, project=project)
+
+    if request.method == "POST":
+        form = ProjectOptionForm(request.POST, instance=option)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Option updated successfully.")
+            return redirect("generator:project_detail", project_id=project.id)
+    else:
+        form = ProjectOptionForm(instance=option)
+
+    return render(request, "generator/index.html", {"form": form, "project": project, "option": option})
+
+def option_delete(request: HttpRequest, project_id: int, option_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+    option = get_object_or_404(ProjectOption, id=option_id, project=project)
+
+    if request.method == "POST":
+        option.delete()
+        messages.success(request, "Option deleted successfully.")
+        return redirect("generator:project_detail", project_id=project.id)
+
+    return render(request, "generator/index.html", {"project": project, "option": option})
+
+
