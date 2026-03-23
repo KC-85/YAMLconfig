@@ -93,3 +93,18 @@ def service_create(request: HttpRequest, project_id: int) -> HttpResponse:
         form = ServiceForm()
 
     return render(request, "generator/index.html", {"form": form, "project": project})
+
+def service_edit(request: HttpRequest, project_id: int, service_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+    service = get_object_or_404(Service, id=service_id, project=project)
+
+    if request.method == "POST":
+        form = ServiceForm(request.POST, instance=service)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Service updated successfully.")
+            return redirect("generator:project_detail", project_id=project.id)
+    else:
+        form = ServiceForm(instance=service)
+
+    return render(request, "generator/index.html", {"form": form, "project": project, "service": service})
