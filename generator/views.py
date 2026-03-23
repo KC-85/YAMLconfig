@@ -40,3 +40,15 @@ def project_detail(request: HttpRequest, project_id: int) -> HttpResponse:
             "volumes": volumes,
         },
     )
+
+def project_create(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        form = ConfigProjectForm(request.POST)
+        if form.is_valid():
+            project = form.save()
+            messages.success(request, "Project created successfully.")
+            return redirect("generator:project_detail", project_id=project.id)
+    else:
+        form = ConfigProjectForm()
+
+    return render(request, "generator/index.html", {"form": form})
