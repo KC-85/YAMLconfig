@@ -52,3 +52,17 @@ def project_create(request: HttpRequest) -> HttpResponse:
         form = ConfigProjectForm()
 
     return render(request, "generator/index.html", {"form": form})
+
+def project_edit(request: HttpRequest, project_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+
+    if request.method == "POST":
+        form = ConfigProjectForm(request.POST, instance=project)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Project updated successfully.")
+            return redirect("generator:project_detail", project_id=project.id)
+    else:
+        form = ConfigProjectForm(instance=project)
+
+    return render(request, "generator/index.html", {"form": form, "project": project})
