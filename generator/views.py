@@ -66,3 +66,13 @@ def project_edit(request: HttpRequest, project_id: int) -> HttpResponse:
         form = ConfigProjectForm(instance=project)
 
     return render(request, "generator/index.html", {"form": form, "project": project})
+
+def project_delete(request: HttpRequest, project_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+
+    if request.method == "POST":
+        project.delete()
+        messages.success(request, "Project deleted successfully.")
+        return redirect("generator:project_list")
+
+    return render(request, "generator/index.html", {"project": project})
