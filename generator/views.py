@@ -149,3 +149,44 @@ def option_delete(request: HttpRequest, project_id: int, option_id: int) -> Http
     return render(request, "generator/index.html", {"project": project, "option": option})
 
 
+def network_create(request: HttpRequest, project_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+
+    if request.method == "POST":
+        form = NetworkForm(request.POST)
+        if form.is_valid():
+            network = form.save(commit=False)
+            network.project = project
+            network.save()
+            messages.success(request, "Network created successfully.")
+            return redirect("generator:project_detail", project_id=project.id)
+    else:
+        form = NetworkForm()
+
+    return render(request, "generator/index.html", {"form": form, "project": project})
+
+def network_edit(request: HttpRequest, project_id: int, network_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+    network = get_object_or_404(Network, id=network_id, project=project)
+
+    if request.method == "POST":
+        form = NetworkForm(request.POST, instance=network)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Network updated successfully.")
+            return redirect("generator:project_detail", project_id=project.id)
+    else:
+        form = NetworkForm(instance=network)
+
+    return render(request, "generator/index.html", {"form": form, "project": project, "network": network})
+
+def network_delete(request: HttpRequest, project_id: int, network_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+    network = get_object_or_404(Network, id=network_id, project=project)
+
+    if request.method == "POST":
+        network.delete()
+        messages.success(request, "Network deleted successfully.")
+        return redirect("generator:project_detail", project_id=project.id)
+
+    return render(request, "generator/index.html", {"project": project, "network": network})
