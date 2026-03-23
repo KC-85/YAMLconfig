@@ -122,6 +122,22 @@ def service_delete(request: HttpRequest, project_id: int, service_id: int) -> Ht
     return render(request, "generator/index.html", {"project": project, "service": service})
 
 
+def option_create(request: HttpRequest, project_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+
+    if request.method == "POST":
+        form = ProjectOptionForm(request.POST)
+        if form.is_valid():
+            option = form.save(commit=False)
+            option.project = project
+            option.save()
+            messages.success(request, "Option created successfully.")
+            return redirect("generator:project_detail", project_id=project.id)
+    else:
+        form = ProjectOptionForm()
+
+    return render(request, "generator/index.html", {"form": form, "project": project})
+
 def option_edit(request: HttpRequest, project_id: int, option_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
     option = get_object_or_404(ProjectOption, id=option_id, project=project)
@@ -190,3 +206,46 @@ def network_delete(request: HttpRequest, project_id: int, network_id: int) -> Ht
         return redirect("generator:project_detail", project_id=project.id)
 
     return render(request, "generator/index.html", {"project": project, "network": network})
+
+
+def volume_create(request: HttpRequest, project_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+
+    if request.method == "POST":
+        form = NamedVolumeForm(request.POST)
+        if form.is_valid():
+            volume = form.save(commit=False)
+            volume.project = project
+            volume.save()
+            messages.success(request, "Volume created successfully.")
+            return redirect("generator:project_detail", project_id=project.id)
+    else:
+        form = NamedVolumeForm()
+
+    return render(request, "generator/index.html", {"form": form, "project": project})
+
+def volume_edit(request: HttpRequest, project_id: int, volume_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+    volume = get_object_or_404(NamedVolume, id=volume_id, project=project)
+
+    if request.method == "POST":
+        form = NamedVolumeForm(request.POST, instance=volume)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Volume updated successfully.")
+            return redirect("generator:project_detail", project_id=project.id)
+    else:
+        form = NamedVolumeForm(instance=volume)
+
+    return render(request, "generator/index.html", {"form": form, "project": project, "volume": volume})
+
+def volume_delete(request: HttpRequest, project_id: int, volume_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+    volume = get_object_or_404(NamedVolume, id=volume_id, project=project)
+
+    if request.method == "POST":
+        volume.delete()
+        messages.success(request, "Volume deleted successfully.")
+        return redirect("generator:project_detail", project_id=project.id)
+
+    return render(request, "generator/index.html", {"project": project, "volume": volume})
