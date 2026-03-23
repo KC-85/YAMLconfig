@@ -76,3 +76,20 @@ def project_delete(request: HttpRequest, project_id: int) -> HttpResponse:
         return redirect("generator:project_list")
 
     return render(request, "generator/index.html", {"project": project})
+
+
+def service_create(request: HttpRequest, project_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id)
+
+    if request.method == "POST":
+        form = ServiceForm(request.POST)
+        if form.is_valid():
+            service = form.save(commit=False)
+            service.project = project
+            service.save()
+            messages.success(request, "Service created successfully.")
+            return redirect("generator:project_detail", project_id=project.id)
+    else:
+        form = ServiceForm()
+
+    return render(request, "generator/index.html", {"form": form, "project": project})
