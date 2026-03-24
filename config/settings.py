@@ -108,3 +108,4 @@ LOGOUT_REDIRECT_URL = "/accounts/login/"
 
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
