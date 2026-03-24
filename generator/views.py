@@ -1,7 +1,7 @@
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_http_methods
 
 from .forms import (
     ConfigProjectForm,
@@ -18,10 +18,12 @@ from .models import (
     Service,
 )
 
+@login_required
 def project_list(request: HttpRequest) -> HttpResponse:
     projects = ConfigProject.objects.all()
     return render(request, "generator/index.html", {"projects": projects})
 
+@login_required
 def project_detail(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
     services = project.services.all()
@@ -41,6 +43,7 @@ def project_detail(request: HttpRequest, project_id: int) -> HttpResponse:
         },
     )
 
+@login_required
 def project_create(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = ConfigProjectForm(request.POST)
@@ -53,6 +56,7 @@ def project_create(request: HttpRequest) -> HttpResponse:
 
     return render(request, "generator/index.html", {"form": form})
 
+@login_required
 def project_edit(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
 
@@ -67,6 +71,7 @@ def project_edit(request: HttpRequest, project_id: int) -> HttpResponse:
 
     return render(request, "generator/index.html", {"form": form, "project": project})
 
+@login_required
 def project_delete(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
 
@@ -78,6 +83,7 @@ def project_delete(request: HttpRequest, project_id: int) -> HttpResponse:
     return render(request, "generator/index.html", {"project": project})
 
 
+@login_required
 def service_create(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
 
@@ -94,6 +100,7 @@ def service_create(request: HttpRequest, project_id: int) -> HttpResponse:
 
     return render(request, "generator/index.html", {"form": form, "project": project})
 
+@login_required
 def service_edit(request: HttpRequest, project_id: int, service_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
     service = get_object_or_404(Service, id=service_id, project=project)
@@ -109,6 +116,7 @@ def service_edit(request: HttpRequest, project_id: int, service_id: int) -> Http
 
     return render(request, "generator/index.html", {"form": form, "project": project, "service": service})
 
+@login_required
 def service_delete(request: HttpRequest, project_id: int, service_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
     service = get_object_or_404(Service, id=service_id, project=project)
@@ -122,6 +130,7 @@ def service_delete(request: HttpRequest, project_id: int, service_id: int) -> Ht
     return render(request, "generator/index.html", {"project": project, "service": service})
 
 
+@login_required
 def option_create(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
 
@@ -138,6 +147,7 @@ def option_create(request: HttpRequest, project_id: int) -> HttpResponse:
 
     return render(request, "generator/index.html", {"form": form, "project": project})
 
+@login_required
 def option_edit(request: HttpRequest, project_id: int, option_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
     option = get_object_or_404(ProjectOption, id=option_id, project=project)
@@ -153,6 +163,7 @@ def option_edit(request: HttpRequest, project_id: int, option_id: int) -> HttpRe
 
     return render(request, "generator/index.html", {"form": form, "project": project, "option": option})
 
+@login_required
 def option_delete(request: HttpRequest, project_id: int, option_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
     option = get_object_or_404(ProjectOption, id=option_id, project=project)
@@ -165,6 +176,7 @@ def option_delete(request: HttpRequest, project_id: int, option_id: int) -> Http
     return render(request, "generator/index.html", {"project": project, "option": option})
 
 
+@login_required
 def network_create(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
 
@@ -181,6 +193,7 @@ def network_create(request: HttpRequest, project_id: int) -> HttpResponse:
 
     return render(request, "generator/index.html", {"form": form, "project": project})
 
+@login_required
 def network_edit(request: HttpRequest, project_id: int, network_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
     network = get_object_or_404(Network, id=network_id, project=project)
@@ -196,6 +209,7 @@ def network_edit(request: HttpRequest, project_id: int, network_id: int) -> Http
 
     return render(request, "generator/index.html", {"form": form, "project": project, "network": network})
 
+@login_required
 def network_delete(request: HttpRequest, project_id: int, network_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
     network = get_object_or_404(Network, id=network_id, project=project)
@@ -208,6 +222,7 @@ def network_delete(request: HttpRequest, project_id: int, network_id: int) -> Ht
     return render(request, "generator/index.html", {"project": project, "network": network})
 
 
+@login_required
 def volume_create(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
 
@@ -224,6 +239,7 @@ def volume_create(request: HttpRequest, project_id: int) -> HttpResponse:
 
     return render(request, "generator/index.html", {"form": form, "project": project})
 
+@login_required
 def volume_edit(request: HttpRequest, project_id: int, volume_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
     volume = get_object_or_404(NamedVolume, id=volume_id, project=project)
@@ -239,6 +255,7 @@ def volume_edit(request: HttpRequest, project_id: int, volume_id: int) -> HttpRe
 
     return render(request, "generator/index.html", {"form": form, "project": project, "volume": volume})
 
+@login_required
 def volume_delete(request: HttpRequest, project_id: int, volume_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id)
     volume = get_object_or_404(NamedVolume, id=volume_id, project=project)
