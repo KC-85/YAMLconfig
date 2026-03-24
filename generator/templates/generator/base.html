@@ -10,6 +10,31 @@
 
 <body class="min-h-screen bg-slate-100 text-slate-900">
 	<main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+	<nav class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+		<a class="text-sm font-semibold text-slate-800" href="{% url 'generator:project_list' %}">YAMLconfig</a>
+
+		{% if user.is_authenticated %}
+			<div class="flex flex-wrap items-center gap-2 text-sm">
+				<span class="text-slate-600">
+					Signed in as
+					<strong class="text-slate-900">{{ user.get_username }}</strong>
+					{% if user.email %}
+						<span class="text-slate-500">({{ user.email }})</span>
+					{% endif %}
+				</span>
+				<a class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" href="{% url 'password_change' %}">Password</a>
+				<form method="post" action="{% url 'logout' %}">
+					{% csrf_token %}
+					<button class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700" type="submit">Logout</button>
+				</form>
+			</div>
+		{% else %}
+			<div class="flex items-center gap-2 text-sm">
+				<a class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700" href="{% url 'login' %}">Login</a>
+			</div>
+		{% endif %}
+	</nav>
+
 	{% if messages %}
 		<ul class="mb-6 space-y-2">
 			{% for message in messages %}
