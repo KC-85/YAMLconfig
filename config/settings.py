@@ -23,9 +23,9 @@ INSTALLED_APPS = [
 	"django.contrib.sessions",
 	"django.contrib.messages",
 	"django.contrib.staticfiles",
-	"django.contrib.sites",
-	"allauth",
-	"allauth.account",
+	# "django.contrib.sites",  # allauth dependency (disabled for now)
+	# "allauth",  # disabled until email/app-password setup is ready
+	# "allauth.account",  # disabled until email/app-password setup is ready
 	"generator",
 ]
 
@@ -35,7 +35,7 @@ MIDDLEWARE = [
 	"django.middleware.common.CommonMiddleware",
 	"django.middleware.csrf.CsrfViewMiddleware",
 	"django.contrib.auth.middleware.AuthenticationMiddleware",
-	"allauth.account.middleware.AccountMiddleware",
+	# "allauth.account.middleware.AccountMiddleware",  # allauth disabled for now
 	"django.contrib.messages.middleware.MessageMiddleware",
 	"django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -95,17 +95,34 @@ STATICFILES_DIRS = [path for path in _static_dirs if path.exists()]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-SITE_ID = 1
+# SITE_ID = 1  # allauth disabled for now
 
 AUTHENTICATION_BACKENDS = [
 	"django.contrib.auth.backends.ModelBackend",
-	"allauth.account.auth_backends.AuthenticationBackend",
+	# "allauth.account.auth_backends.AuthenticationBackend",  # allauth disabled for now
 ]
 
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-ACCOUNT_UNIQUE_EMAIL = True
-ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
+# Allauth account settings kept for later re-enable.
+# ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+# ACCOUNT_UNIQUE_EMAIL = True
+# ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
+
+if DEBUG:
+	EMAIL_BACKEND = os.getenv(
+		"DJANGO_EMAIL_BACKEND",
+		"django.core.mail.backends.console.EmailBackend",
+	)
+else:
+	EMAIL_BACKEND = os.getenv("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+
+EMAIL_HOST = os.getenv("DJANGO_EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("DJANGO_EMAIL_PORT", "25"))
+EMAIL_HOST_USER = os.getenv("DJANGO_EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("DJANGO_EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("DJANGO_EMAIL_USE_TLS", "false").lower() in {"1", "true", "yes"}
+EMAIL_USE_SSL = os.getenv("DJANGO_EMAIL_USE_SSL", "false").lower() in {"1", "true", "yes"}
+DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL", "no-reply@yamlconfig.local")
