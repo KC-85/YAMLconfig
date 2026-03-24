@@ -1,0 +1,245 @@
+{% extends "generator/base.html" %}
+
+{% block title %}YAMLconfig Dashboard{% endblock %}
+
+{% block content %}
+	<div class="space-y-6">
+		<header class="rounded-2xl bg-slate-900 p-6 text-slate-100 shadow-sm">
+			<h1 class="text-2xl font-bold tracking-tight">YAMLconfig Dashboard</h1>
+			<p class="mt-2 text-slate-300">Build Docker Compose and Dockerfile output from one workspace.</p>
+			<div class="mt-4 flex flex-wrap gap-2">
+				<a class="inline-flex items-center rounded-md bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-cyan-300" href="{% url 'generator:project_list' %}">All Projects</a>
+				<a class="inline-flex items-center rounded-md bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-cyan-300" href="{% url 'generator:project_create' %}">New Project</a>
+				{% if project %}
+					<a class="inline-flex items-center rounded-md border border-slate-500 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-800" href="{% url 'generator:project_edit' project.id %}">Edit Project</a>
+				{% endif %}
+			</div>
+		</header>
+
+		<div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+			{% if form %}
+				<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-8">
+					<h2 class="text-lg font-semibold">Editor</h2>
+					<form method="post">
+						{% csrf_token %}
+						<div class="mt-4 space-y-3">{{ form.as_p }}</div>
+						<div class="mt-4 flex flex-wrap gap-2">
+							<button class="inline-flex items-center rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700" type="submit">Save</button>
+							<a class="inline-flex items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% if project %}{% url 'generator:project_detail' project.id %}{% else %}{% url 'generator:project_list' %}{% endif %}">Cancel</a>
+						</div>
+					</form>
+				</section>
+			{% endif %}
+
+			{% if '/delete/' in request.path %}
+				<section class="rounded-xl border border-rose-200 bg-rose-50 p-4 shadow-sm lg:col-span-8">
+					<h2 class="text-lg font-semibold text-rose-900">Delete Confirmation</h2>
+					<div class="mt-2">
+						<p class="text-sm text-rose-800">This action cannot be undone.</p>
+						<form method="post">
+							{% csrf_token %}
+							<div class="mt-3 flex flex-wrap gap-2">
+								<button class="inline-flex items-center rounded-md bg-rose-700 px-3 py-2 text-sm font-medium text-white hover:bg-rose-600" type="submit">Confirm Delete</button>
+								<a class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% if project %}{% url 'generator:project_detail' project.id %}{% else %}{% url 'generator:project_list' %}{% endif %}">Cancel</a>
+							</div>
+						</form>
+					</div>
+				</section>
+			{% endif %}
+
+			{% if project %}
+				<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-4">
+					<h2 class="text-lg font-semibold">Project</h2>
+					<p><strong>{{ project.name }}</strong></p>
+					<p class="mt-1 text-sm text-slate-600">Target: {{ project.target_type }}</p>
+					<p class="text-sm text-slate-600">Updated: {{ project.updated_at }}</p>
+
+					<div class="mt-3 flex flex-wrap gap-2">
+						<a class="inline-flex items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'generator:service_create' project.id %}">Add Service</a>
+						<a class="inline-flex items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'generator:option_create' project.id %}">Add Option</a>
+						<a class="inline-flex items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'generator:network_create' project.id %}">Add Network</a>
+						<a class="inline-flex items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="{% url 'generator:volume_create' project.id %}">Add Volume</a>
+						<a class="inline-flex items-center rounded-md bg-rose-700 px-3 py-2 text-sm font-medium text-white hover:bg-rose-600" href="{% url 'generator:project_delete' project.id %}">Delete Project</a>
+					</div>
+				</section>
+			{% endif %}
+
+			{% if project.output_text %}
+				<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-12">
+					<h3 class="text-lg font-semibold">Generated Output</h3>
+					<pre class="mt-2 overflow-x-auto rounded-lg bg-slate-950 p-4 text-sm text-slate-100">{{ project.output_text }}</pre>
+				</section>
+			{% endif %}
+
+			{% if services %}
+				<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-12">
+					<h3 class="text-lg font-semibold">Services</h3>
+					<div class="mt-2 overflow-x-auto">
+					<table class="min-w-full divide-y divide-slate-200 text-sm">
+						<thead>
+							<tr class="bg-slate-50 text-left text-slate-700">
+								<th>Name</th>
+								<th>Image</th>
+								<th>Restart</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-slate-100">
+							{% for service in services %}
+								<tr>
+									<td>{{ service.name }}</td>
+									<td>{{ service.image|default:"-" }}</td>
+									<td>{{ service.restart_policy|default:"-" }}</td>
+									<td>
+										<div class="flex flex-wrap gap-2">
+											<a class="inline-flex items-center rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" href="{% url 'generator:service_edit' project.id service.id %}">Edit</a>
+											<a class="inline-flex items-center rounded-md bg-rose-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-rose-600" href="{% url 'generator:service_delete' project.id service.id %}">Delete</a>
+										</div>
+									</td>
+								</tr>
+							{% empty %}
+								<tr><td colspan="4">No services yet.</td></tr>
+							{% endfor %}
+						</tbody>
+					</table>
+					</div>
+				</section>
+			{% endif %}
+
+			{% if options %}
+				<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-6">
+					<h3 class="text-lg font-semibold">Options</h3>
+					<div class="mt-2 overflow-x-auto">
+					<table class="min-w-full divide-y divide-slate-200 text-sm">
+						<thead>
+							<tr class="bg-slate-50 text-left text-slate-700">
+								<th>Key</th>
+								<th>Value</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-slate-100">
+							{% for option in options %}
+								<tr>
+									<td>{{ option.key }}</td>
+									<td>{{ option.value }}</td>
+									<td>
+										<div class="flex flex-wrap gap-2">
+											<a class="inline-flex items-center rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" href="{% url 'generator:option_edit' project.id option.id %}">Edit</a>
+											<a class="inline-flex items-center rounded-md bg-rose-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-rose-600" href="{% url 'generator:option_delete' project.id option.id %}">Delete</a>
+										</div>
+									</td>
+								</tr>
+							{% empty %}
+								<tr><td colspan="3">No options yet.</td></tr>
+							{% endfor %}
+						</tbody>
+					</table>
+					</div>
+				</section>
+			{% endif %}
+
+			{% if networks %}
+				<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-6">
+					<h3 class="text-lg font-semibold">Networks</h3>
+					<div class="mt-2 overflow-x-auto">
+					<table class="min-w-full divide-y divide-slate-200 text-sm">
+						<thead>
+							<tr class="bg-slate-50 text-left text-slate-700">
+								<th>Name</th>
+								<th>Driver</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-slate-100">
+							{% for network in networks %}
+								<tr>
+									<td>{{ network.name }}</td>
+									<td>{{ network.driver|default:"-" }}</td>
+									<td>
+										<div class="flex flex-wrap gap-2">
+											<a class="inline-flex items-center rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" href="{% url 'generator:network_edit' project.id network.id %}">Edit</a>
+											<a class="inline-flex items-center rounded-md bg-rose-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-rose-600" href="{% url 'generator:network_delete' project.id network.id %}">Delete</a>
+										</div>
+									</td>
+								</tr>
+							{% empty %}
+								<tr><td colspan="3">No networks yet.</td></tr>
+							{% endfor %}
+						</tbody>
+					</table>
+					</div>
+				</section>
+			{% endif %}
+
+			{% if volumes %}
+				<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-12">
+					<h3 class="text-lg font-semibold">Named Volumes</h3>
+					<div class="mt-2 overflow-x-auto">
+					<table class="min-w-full divide-y divide-slate-200 text-sm">
+						<thead>
+							<tr class="bg-slate-50 text-left text-slate-700">
+								<th>Name</th>
+								<th>Driver</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-slate-100">
+							{% for volume in volumes %}
+								<tr>
+									<td>{{ volume.name }}</td>
+									<td>{{ volume.driver|default:"-" }}</td>
+									<td>
+										<div class="flex flex-wrap gap-2">
+											<a class="inline-flex items-center rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" href="{% url 'generator:volume_edit' project.id volume.id %}">Edit</a>
+											<a class="inline-flex items-center rounded-md bg-rose-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-rose-600" href="{% url 'generator:volume_delete' project.id volume.id %}">Delete</a>
+										</div>
+									</td>
+								</tr>
+							{% empty %}
+								<tr><td colspan="3">No named volumes yet.</td></tr>
+							{% endfor %}
+						</tbody>
+					</table>
+					</div>
+				</section>
+			{% endif %}
+
+			{% if projects %}
+				<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-12">
+					<h2 class="text-lg font-semibold">Projects</h2>
+					<div class="mt-2 overflow-x-auto">
+					<table class="min-w-full divide-y divide-slate-200 text-sm">
+						<thead>
+							<tr class="bg-slate-50 text-left text-slate-700">
+								<th>Name</th>
+								<th>Target</th>
+								<th>Updated</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-slate-100">
+							{% for project_row in projects %}
+								<tr>
+									<td>{{ project_row.name }}</td>
+									<td>{{ project_row.target_type }}</td>
+									<td>{{ project_row.updated_at }}</td>
+									<td>
+										<div class="flex flex-wrap gap-2">
+											<a class="inline-flex items-center rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" href="{% url 'generator:project_detail' project_row.id %}">Open</a>
+											<a class="inline-flex items-center rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" href="{% url 'generator:project_edit' project_row.id %}">Edit</a>
+											<a class="inline-flex items-center rounded-md bg-rose-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-rose-600" href="{% url 'generator:project_delete' project_row.id %}">Delete</a>
+										</div>
+									</td>
+								</tr>
+							{% empty %}
+								<tr><td colspan="4">No projects yet. Create one to get started.</td></tr>
+							{% endfor %}
+						</tbody>
+					</table>
+					</div>
+				</section>
+			{% endif %}
+		</div>
+	</div>
+{% endblock %}
