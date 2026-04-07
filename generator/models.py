@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -6,6 +7,13 @@ class ConfigProject(models.Model):
 		DOCKERFILE = "dockerfile", "Dockerfile"
 		DOCKER_COMPOSE = "docker-compose", "Docker Compose"
 
+	owner = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name="config_projects",
+		null=True,
+		blank=True,
+	)
 	name = models.CharField(max_length=120)
 	target_type = models.CharField(
 		max_length=32,

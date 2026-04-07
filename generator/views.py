@@ -20,12 +20,12 @@ from .models import (
 
 @login_required
 def project_list(request: HttpRequest) -> HttpResponse:
-    projects = ConfigProject.objects.all()
+    projects = ConfigProject.objects.filter(owner=request.user)
     return render(request, "generator/index.html", {"projects": projects})
 
 @login_required
 def project_detail(request: HttpRequest, project_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
     services = project.services.all()
     options = project.options.all()
     networks = project.networks.all()
@@ -48,7 +48,9 @@ def project_create(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = ConfigProjectForm(request.POST)
         if form.is_valid():
-            project = form.save()
+            project = form.save(commit=False)
+            project.owner = request.user
+            project.save()
             messages.success(request, "Project created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -58,7 +60,7 @@ def project_create(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def project_edit(request: HttpRequest, project_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
 
     if request.method == "POST":
         form = ConfigProjectForm(request.POST, instance=project)
@@ -73,7 +75,7 @@ def project_edit(request: HttpRequest, project_id: int) -> HttpResponse:
 
 @login_required
 def project_delete(request: HttpRequest, project_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
 
     if request.method == "POST":
         project.delete()
@@ -85,7 +87,7 @@ def project_delete(request: HttpRequest, project_id: int) -> HttpResponse:
 
 @login_required
 def service_create(request: HttpRequest, project_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
 
     if request.method == "POST":
         form = ServiceForm(request.POST)
@@ -102,7 +104,7 @@ def service_create(request: HttpRequest, project_id: int) -> HttpResponse:
 
 @login_required
 def service_edit(request: HttpRequest, project_id: int, service_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
     service = get_object_or_404(Service, id=service_id, project=project)
 
     if request.method == "POST":
@@ -118,7 +120,7 @@ def service_edit(request: HttpRequest, project_id: int, service_id: int) -> Http
 
 @login_required
 def service_delete(request: HttpRequest, project_id: int, service_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
     service = get_object_or_404(Service, id=service_id, project=project)
 
     if request.method == "POST":
@@ -132,7 +134,7 @@ def service_delete(request: HttpRequest, project_id: int, service_id: int) -> Ht
 
 @login_required
 def option_create(request: HttpRequest, project_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
 
     if request.method == "POST":
         form = ProjectOptionForm(request.POST)
@@ -149,7 +151,7 @@ def option_create(request: HttpRequest, project_id: int) -> HttpResponse:
 
 @login_required
 def option_edit(request: HttpRequest, project_id: int, option_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
     option = get_object_or_404(ProjectOption, id=option_id, project=project)
 
     if request.method == "POST":
@@ -165,7 +167,7 @@ def option_edit(request: HttpRequest, project_id: int, option_id: int) -> HttpRe
 
 @login_required
 def option_delete(request: HttpRequest, project_id: int, option_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
     option = get_object_or_404(ProjectOption, id=option_id, project=project)
 
     if request.method == "POST":
@@ -178,7 +180,7 @@ def option_delete(request: HttpRequest, project_id: int, option_id: int) -> Http
 
 @login_required
 def network_create(request: HttpRequest, project_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
 
     if request.method == "POST":
         form = NetworkForm(request.POST)
@@ -195,7 +197,7 @@ def network_create(request: HttpRequest, project_id: int) -> HttpResponse:
 
 @login_required
 def network_edit(request: HttpRequest, project_id: int, network_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
     network = get_object_or_404(Network, id=network_id, project=project)
 
     if request.method == "POST":
@@ -211,7 +213,7 @@ def network_edit(request: HttpRequest, project_id: int, network_id: int) -> Http
 
 @login_required
 def network_delete(request: HttpRequest, project_id: int, network_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
     network = get_object_or_404(Network, id=network_id, project=project)
 
     if request.method == "POST":
@@ -224,7 +226,7 @@ def network_delete(request: HttpRequest, project_id: int, network_id: int) -> Ht
 
 @login_required
 def volume_create(request: HttpRequest, project_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
 
     if request.method == "POST":
         form = NamedVolumeForm(request.POST)
@@ -241,7 +243,7 @@ def volume_create(request: HttpRequest, project_id: int) -> HttpResponse:
 
 @login_required
 def volume_edit(request: HttpRequest, project_id: int, volume_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
     volume = get_object_or_404(NamedVolume, id=volume_id, project=project)
 
     if request.method == "POST":
@@ -257,7 +259,7 @@ def volume_edit(request: HttpRequest, project_id: int, volume_id: int) -> HttpRe
 
 @login_required
 def volume_delete(request: HttpRequest, project_id: int, volume_id: int) -> HttpResponse:
-    project = get_object_or_404(ConfigProject, id=project_id)
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
     volume = get_object_or_404(NamedVolume, id=volume_id, project=project)
 
     if request.method == "POST":
