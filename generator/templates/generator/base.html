@@ -6,44 +6,68 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>{% block title %}YAMLconfig{% endblock %}</title>
 	<script src="https://cdn.tailwindcss.com"></script>
+	<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+	<style>
+		[x-cloak] { display: none !important; }
+	</style>
 </head>
 
-<body class="min-h-screen bg-slate-100 text-slate-900">
-	<main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-	<nav class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-		<a class="text-sm font-semibold text-slate-800" href="{% url 'generator:project_list' %}">YAMLconfig</a>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+	<div x-data="{ toasts: [] }">
+		<!-- Toast Container -->
+		<div class="fixed top-4 right-4 z-50 space-y-2">
+			<template x-for="toast in toasts" :key="toast.id">
+				<div 
+					:class="'rounded-lg shadow-lg px-4 py-3 text-sm font-medium transition-all duration-300 ' + (toast.type === 'success' ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : toast.type === 'error' ? 'bg-rose-50 border border-rose-200 text-rose-800' : 'bg-blue-50 border border-blue-200 text-blue-800')"
+					x-init="setTimeout(() => { toasts.splice(toasts.indexOf(toast), 1) }, 3000)"
+				>
+					<x-text x-text="toast.message"></x-text>
+				</div>
+			</template>
+		</div>
 
-		{% if user.is_authenticated %}
-			<div class="flex flex-wrap items-center gap-2 text-sm">
-				<span class="text-slate-600">
-					Signed in as
-					<strong class="text-slate-900">{{ user.get_username }}</strong>
-					{% if user.email %}
-						<span class="text-slate-500">({{ user.email }})</span>
-					{% endif %}
-				</span>
-				<a class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" href="{% url 'password_change' %}">Password</a>
-				<form method="post" action="{% url 'logout' %}">
-					{% csrf_token %}
-					<button class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700" type="submit">Logout</button>
-				</form>
-			</div>
-		{% else %}
-			<div class="flex items-center gap-2 text-sm">
-				<a class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700" href="{% url 'login' %}">Login</a>
-			</div>
-		{% endif %}
-	</nav>
+		<main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+			<!-- Header Navigation -->
+			<nav class="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-6 py-4 shadow-sm">
+				<a class="text-lg font-bold text-slate-900" href="{% url 'generator:project_list' %}">
+					<span class="text-cyan-600">YAML</span><span class="text-slate-900">config</span>
+				</a>
 
-	{% if messages %}
-		<ul class="mb-6 space-y-2">
-			{% for message in messages %}
-				<li class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{{ message }}</li>
-			{% endfor %}
-		</ul>
-	{% endif %}
+				{% if user.is_authenticated %}
+					<div class="flex flex-wrap items-center gap-4 text-sm">
+						<span class="text-slate-600">
+							<strong class="text-slate-900">{{ user.get_username }}</strong>
+						</span>
+						<div class="flex items-center gap-2">
+							<a class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors" href="{% url 'password_change' %}">Password</a>
+							<form method="post" action="{% url 'logout' %}" class="inline">
+								{% csrf_token %}
+								<button class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 transition-colors" type="submit">Logout</button>
+							</form>
+						</div>
+					</div>
+				{% else %}
+					<div class="flex items-center gap-2 text-sm">
+						<a class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 transition-colors" href="{% url 'login' %}">Login</a>
+					</div>
+				{% endif %}
+			</nav>
 
-	{% block content %}{% endblock %}
-	</main>
+			<!-- Messages converted to Toasts -->
+			{% if messages %}
+				<script>
+					document.addEventListener('DOMContentLoaded', function() {
+						const toastContainer = document.querySelector('[x-init*="toasts"]')?.parentElement?.parentElement;
+						{% for message in messages %}
+							const event = new CustomEvent('toast', { detail: { message: '{{ message|escapejs }}', type: 'success' } });
+							document.dispatchEvent(event);
+						{% endfor %}
+					});
+				</script>
+			{% endif %}
+
+			{% block content %}{% endblock %}
+		</main>
+	</div>
 </body>
 </html>

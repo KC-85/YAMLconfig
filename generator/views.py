@@ -1,7 +1,11 @@
+import io
+import zipfile
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.text import slugify
 
 from .forms import (
     ConfigProjectForm,
@@ -91,6 +95,50 @@ def project_delete(request: HttpRequest, project_id: int) -> HttpResponse:
         return redirect("generator:project_list")
 
     return render(request, "generator/index.html", {"project": project, "is_delete_confirm": True})
+
+
+def _as_filename(project: ConfigProject) -> str:
+    base = slugify(project.name) or f"project-{project.id}"
+    return base
+
+
+def _text_download_response(content: str, filename: str) -> HttpResponse:
+    response = HttpResponse(content, content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def project_download_compose(request: HttpRequest, project_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
+    content = build_output(project, target_type="docker-compose")
+    filename = f"{_as_filename(project)}-docker-compose.yml"
+    return _text_download_response(content, filename)
+
+
+@login_required
+def project_download_dockerfile(request: HttpRequest, project_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
+    content = build_output(project, target_type="dockerfile")
+    filename = f"{_as_filename(project)}-Dockerfile"
+    return _text_download_response(content, filename)
+
+
+@login_required
+def project_download_bundle(request: HttpRequest, project_id: int) -> HttpResponse:
+    project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
+    compose = build_output(project, target_type="docker-compose")
+    dockerfile = build_output(project, target_type="dockerfile")
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("docker-compose.yml", compose)
+        zf.writestr("Dockerfile", dockerfile)
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{_as_filename(project)}-docker-config.zip"'
+    return response
 
 
 @login_required
