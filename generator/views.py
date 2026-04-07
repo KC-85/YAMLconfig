@@ -90,7 +90,7 @@ def project_delete(request: HttpRequest, project_id: int) -> HttpResponse:
         messages.success(request, "Project deleted successfully.")
         return redirect("generator:project_list")
 
-    return render(request, "generator/index.html", {"project": project})
+    return render(request, "generator/index.html", {"project": project, "is_delete_confirm": True})
 
 
 @login_required
@@ -140,7 +140,7 @@ def service_delete(request: HttpRequest, project_id: int, service_id: int) -> Ht
 
         return redirect("generator:project_detail", project_id=project.id)
 
-    return render(request, "generator/index.html", {"project": project, "service": service})
+    return render(request, "generator/index.html", {"project": project, "service": service, "is_delete_confirm": True})
 
 
 @login_required
@@ -189,7 +189,7 @@ def option_delete(request: HttpRequest, project_id: int, option_id: int) -> Http
         messages.success(request, "Option deleted successfully.")
         return redirect("generator:project_detail", project_id=project.id)
 
-    return render(request, "generator/index.html", {"project": project, "option": option})
+    return render(request, "generator/index.html", {"project": project, "option": option, "is_delete_confirm": True})
 
 
 @login_required
@@ -238,7 +238,7 @@ def network_delete(request: HttpRequest, project_id: int, network_id: int) -> Ht
         messages.success(request, "Network deleted successfully.")
         return redirect("generator:project_detail", project_id=project.id)
 
-    return render(request, "generator/index.html", {"project": project, "network": network})
+    return render(request, "generator/index.html", {"project": project, "network": network, "is_delete_confirm": True})
 
 
 @login_required
@@ -287,4 +287,4 @@ def volume_delete(request: HttpRequest, project_id: int, volume_id: int) -> Http
         messages.success(request, "Volume deleted successfully.")
         return redirect("generator:project_detail", project_id=project.id)
 
-    return render(request, "generator/index.html", {"project": project, "volume": volume})
+    return render(request, "generator/index.html", {"project": project, "volume": volume, "is_delete_confirm": True})
