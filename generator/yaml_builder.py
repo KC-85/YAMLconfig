@@ -75,7 +75,17 @@ def _compose_dict(project: Mapping[str, Any] | Any) -> dict[str, Any]:
             network_name = _get_value(network, "name", "")
             if not network_name:
                 continue
-            data["networks"][network_name] = {}
+            network_data: dict[str, Any] = {}
+            _set_if_present(network_data, "driver", _get_value(network, "driver"))
+            _set_if_present(network_data, "external", _get_value(network, "external"))
+            _set_if_present(network_data, "attachable", _get_value(network, "attachable"))
+            _set_if_present(network_data, "internal", _get_value(network, "internal"))
+            _set_if_present(network_data, "labels", _get_value(network, "labels"))
+            _set_if_present(network_data, "driver_opts", _get_value(network, "driver_opts"))
+            extra = _get_value(network, "extra", {})
+            if isinstance(extra, Mapping):
+                network_data.update(extra)
+            data["networks"][network_name] = network_data
 
     named_volumes = _normalize_collection(_get_value(project, "named_volumes", []))
     if not named_volumes:
@@ -87,7 +97,15 @@ def _compose_dict(project: Mapping[str, Any] | Any) -> dict[str, Any]:
             volume_name = _get_value(volume, "name", "")
             if not volume_name:
                 continue
-            data["volumes"][volume_name] = {}
+            volume_data: dict[str, Any] = {}
+            _set_if_present(volume_data, "driver", _get_value(volume, "driver"))
+            _set_if_present(volume_data, "external", _get_value(volume, "external"))
+            _set_if_present(volume_data, "labels", _get_value(volume, "labels"))
+            _set_if_present(volume_data, "driver_opts", _get_value(volume, "driver_opts"))
+            extra = _get_value(volume, "extra", {})
+            if isinstance(extra, Mapping):
+                volume_data.update(extra)
+            data["volumes"][volume_name] = volume_data
 
     options = _normalize_collection(_get_value(project, "options", []))
     for option in options:
