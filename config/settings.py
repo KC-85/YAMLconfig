@@ -23,6 +23,7 @@ INSTALLED_APPS = [
 	"django.contrib.sessions",
 	"django.contrib.messages",
 	"django.contrib.staticfiles",
+	"axes",
 	# "django.contrib.sites",  # allauth dependency (disabled for now)
 	# "allauth",  # disabled until email/app-password setup is ready
 	# "allauth.account",  # disabled until email/app-password setup is ready
@@ -35,6 +36,7 @@ MIDDLEWARE = [
 	"django.middleware.common.CommonMiddleware",
 	"django.middleware.csrf.CsrfViewMiddleware",
 	"django.contrib.auth.middleware.AuthenticationMiddleware",
+	"axes.middleware.AxesMiddleware",
 	# "allauth.account.middleware.AccountMiddleware",  # allauth disabled for now
 	"django.contrib.messages.middleware.MessageMiddleware",
 	"django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -98,9 +100,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # SITE_ID = 1  # allauth disabled for now
 
 AUTHENTICATION_BACKENDS = [
+	"axes.backends.AxesStandaloneBackend",
 	"django.contrib.auth.backends.ModelBackend",
 	# "allauth.account.auth_backends.AuthenticationBackend",  # allauth disabled for now
 ]
+
+AXES_FAILURE_LIMIT = int(os.getenv("AXES_FAILURE_LIMIT", "5"))
+AXES_COOLOFF_TIME = int(os.getenv("AXES_COOLOFF_TIME", "1"))
+AXES_LOCKOUT_PARAMETERS = ["username", "ip_address"]
+AXES_RESET_ON_SUCCESS = True
 
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"

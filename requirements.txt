@@ -3,3 +3,4 @@ django-allauth
 PyYAML>=6.0
 Django==5.2.7
 django-allauth
+django-axes>=6.5.0
