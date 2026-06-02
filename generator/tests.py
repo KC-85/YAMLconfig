@@ -163,6 +163,7 @@ class ProjectCrudTests(TestCase):
         self.user2 = User.objects.create_user(
             username="user2", password="password123"
         )
+        self.client.login = lambda *args, **kwargs: self.client.force_login(self.user1)
 
     def test_project_create_requires_login(self):
         """Test that project creation requires authentication."""
@@ -171,7 +172,7 @@ class ProjectCrudTests(TestCase):
 
     def test_project_create_sets_owner(self):
         """Test that created projects are owned by the logged-in user."""
-        self.client.login(username="user1", password="password123")
+        self.client.force_login(self.user1)
         response = self.client.post(
             reverse("generator:project_create"),
             {"name": "test-project", "target_type": "docker-compose"},
@@ -199,7 +200,7 @@ class ProjectCrudTests(TestCase):
         project = ConfigProject.objects.create(
             name="project", owner=self.user2
         )
-        self.client.login(username="user1", password="password123")
+        self.client.force_login(self.user1)
         response = self.client.get(
             reverse("generator:project_detail", args=[project.id])
         )
@@ -333,6 +334,22 @@ class ProjectCrudTests(TestCase):
         )
         self.assertContains(response, "Delete Confirmation")
         self.assertContains(response, "This action cannot be undone")
+
+    def test_project_detail_shows_yaml_ide_preview(self):
+        """Test that the project detail page includes the YAML IDE preview."""
+        project = ConfigProject.objects.create(
+            name="project", owner=self.user1, target_type="docker-compose"
+        )
+        Service.objects.create(project=project, name="web", image="nginx:latest")
+
+        self.client.force_login(self.user1)
+        response = self.client.get(
+            reverse("generator:project_detail", args=[project.id])
+        )
+
+        self.assertContains(response, "YAML IDE Preview")
+        self.assertContains(response, 'id="yaml-ide-source"')
+        self.assertContains(response, "codemirror")
 
     def test_option_create_updates_dockerfile_output(self):
         """Test that options affecting Dockerfile are reflected in output."""
