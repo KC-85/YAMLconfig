@@ -7,6 +7,7 @@
 	<title>{% block title %}YAMLconfig{% endblock %}</title>
 	<script src="https://cdn.tailwindcss.com"></script>
 	<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+	{% block extra_head %}{% endblock %}
 	<script>
 		(() => {
 			const storedTheme = localStorage.getItem('theme');
@@ -101,6 +102,7 @@
 						const nextThemeIsDark = !document.documentElement.classList.contains('dark');
 						document.documentElement.classList.toggle('dark', nextThemeIsDark);
 						localStorage.setItem('theme', nextThemeIsDark ? 'dark' : 'light');
+						window.dispatchEvent(new CustomEvent('theme-changed', { detail: { dark: nextThemeIsDark } }));
 						syncLabel();
 					});
 
@@ -109,6 +111,7 @@
 			</script>
 
 			{% block content %}{% endblock %}
+			{% block extra_scripts %}{% endblock %}
 		</main>
 	</div>
 </body>
