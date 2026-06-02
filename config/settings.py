@@ -73,7 +73,7 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
 	{"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-	{"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+	{"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
 	{"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
 	{"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
@@ -98,6 +98,28 @@ STATICFILES_DIRS = [path for path in _static_dirs if path.exists()]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # SITE_ID = 1  # allauth disabled for now
+
+# Prefer strong password hashing when available (argon2 if installed)
+PASSWORD_HASHERS = [
+	"django.contrib.auth.hashers.Argon2PasswordHasher",
+	"django.contrib.auth.hashers.PBKDF2PasswordHasher",
+	"django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+	"django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+]
+
+# Security-related cookie / TLS settings. These are enabled when not in DEBUG.
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_SECURE_HSTS_SECONDS", "31536000")) if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Password reset token lifetime (seconds)
+PASSWORD_RESET_TIMEOUT = int(os.getenv("DJANGO_PASSWORD_RESET_TIMEOUT", "3600"))
 
 AUTHENTICATION_BACKENDS = [
 	"axes.backends.AxesStandaloneBackend",
