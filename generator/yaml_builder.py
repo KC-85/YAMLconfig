@@ -1,3 +1,5 @@
+import json
+import re
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -6,6 +8,10 @@ import yaml
 
 DOCKERFILE = "dockerfile"
 DOCKER_COMPOSE = "docker-compose"
+DEFAULT_BASE_IMAGE = "python:3.12-slim"
+DEFAULT_WORKDIR = "/app"
+DEFAULT_COPY = ". ."
+VALID_EXPOSE_PROTOCOLS = {"tcp", "udp"}
 
 def _get_value(source: Mapping[str, Any] | Any, key: str, default: Any = None) -> Any:
     if isinstance(source, Mapping):
@@ -132,34 +138,179 @@ def _options_to_dict(project: Mapping[str, Any] | Any) -> dict[str, Any]:
     return options_dict
 
 
+def _single_line_value(value: Any) -> str | None:
+    if not isinstance(value, (str, int, float)):
+        return None
+
+    text = str(value).strip()
+    if not text or len(text.splitlines()) != 1 or "\0" in text:
+        return None
+
+    return text
+
+
+def _first_single_line(*values: Any, default: str) -> str:
+    for value in values:
+        normalized = _single_line_value(value)
+        if normalized is not None:
+            return normalized
+    return default
+
+
+def _select_primary_service(
+    services: list[Any],
+    options: Mapping[str, Any],
+) -> Mapping[str, Any] | Any:
+    requested_name = _single_line_value(
+        options.get("dockerfile_service") or options.get("primary_service")
+    )
+    if requested_name:
+        for service in services:
+            if _single_line_value(_get_value(service, "name")) == requested_name:
+                return service
+
+    for service in services:
+        if _single_line_value(_get_value(service, "image")):
+            return service
+
+    return services[0] if services else {}
+
+
+def _expose_candidates(value: Any) -> list[Any]:
+    if isinstance(value, Mapping):
+        return [value.get("target")]
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return []
+
+        try:
+            decoded = json.loads(stripped)
+        except json.JSONDecodeError:
+            decoded = None
+
+        if isinstance(decoded, list):
+            return decoded
+
+        # ProjectOption values are text. Accept comma/whitespace-separated ports,
+        # JSON-like lists, and Compose host mappings without emitting the host side.
+        cleaned = re.sub(r"[\[\]\"']", " ", stripped)
+        return [part for part in re.split(r"[\s,]+", cleaned) if part]
+
+    if isinstance(value, Iterable) and not isinstance(value, (bytes, bytearray)):
+        candidates: list[Any] = []
+        for item in value:
+            candidates.extend(_expose_candidates(item))
+        return candidates
+
+    return [value]
+
+
+def _normalize_expose_port(value: Any) -> str | None:
+    if isinstance(value, bool):
+        return None
+
+    text = _single_line_value(value)
+    if text is None:
+        return None
+
+    # Compose mappings can include IP:host:container. EXPOSE only accepts the
+    # final container port, so discard everything before the final colon.
+    text = text.rsplit(":", maxsplit=1)[-1]
+    port_text, separator, protocol = text.partition("/")
+
+    if not port_text.isdigit():
+        return None
+
+    port = int(port_text)
+    if not 1 <= port <= 65535:
+        return None
+
+    if not separator:
+        return str(port)
+
+    protocol = protocol.lower()
+    if protocol not in VALID_EXPOSE_PROTOCOLS:
+        return None
+
+    return f"{port}/{protocol}"
+
+
+def _normalize_expose_ports(value: Any) -> list[str]:
+    ports: list[str] = []
+    for candidate in _expose_candidates(value):
+        port = _normalize_expose_port(candidate)
+        if port and port not in ports:
+            ports.append(port)
+    return ports
+
+
 def _container_ports_from_service(service: Mapping[str, Any] | Any) -> list[str]:
-    ports = _normalize_collection(_get_value(service, "ports", []))
-    container_ports: list[str] = []
+    return _normalize_expose_ports(_get_value(service, "ports", []))
 
-    for port in ports:
-        if isinstance(port, int):
-            container_ports.append(str(port))
+
+def _run_commands(value: Any) -> list[str]:
+    raw_commands = [value] if isinstance(value, str) else _normalize_collection(value)
+    commands: list[str] = []
+
+    for raw_command in raw_commands:
+        if not isinstance(raw_command, str):
             continue
+        commands.extend(
+            line.strip()
+            for line in raw_command.splitlines()
+            if line.strip()
+        )
 
-        if not isinstance(port, str):
-            continue
+    return commands
 
-        # Handles formats like "8000:80" or "127.0.0.1:8000:80" by taking the last segment.
-        container_port = port.split(":")[-1].strip()
-        if container_port:
-            container_ports.append(container_port)
 
-    return container_ports
+def _cmd_instruction(value: Any) -> str | None:
+    if isinstance(value, str):
+        command = value.strip()
+        if not command:
+            return None
+
+        try:
+            decoded = json.loads(command)
+        except json.JSONDecodeError:
+            decoded = None
+
+        if isinstance(decoded, list):
+            parts = [str(part) for part in decoded if str(part).strip()]
+            return f"CMD {json.dumps(parts)}" if parts else None
+
+        return f"CMD {json.dumps(['sh', '-c', command])}"
+
+    parts = [
+        str(part)
+        for part in _normalize_collection(value)
+        if str(part).strip()
+    ]
+    return f"CMD {json.dumps(parts)}" if parts else None
 
 
 def build_dockerfile(project: Mapping[str, Any] | Any) -> str:
     options = _options_to_dict(project)
     services = _normalize_collection(_get_value(project, "services", []))
-    primary_service = services[0] if services else {}
+    primary_service = _select_primary_service(services, options)
 
-    from_image = options.get("dockerfile_from") or options.get("base_image") or _get_value(primary_service, "image", "python:3.12-slim")
-    workdir = options.get("dockerfile_workdir") or options.get("workdir") or "/app"
-    copy_value = options.get("dockerfile_copy") or ". ."
+    from_image = _first_single_line(
+        options.get("dockerfile_from"),
+        options.get("base_image"),
+        _get_value(primary_service, "image"),
+        default=DEFAULT_BASE_IMAGE,
+    )
+    workdir = _first_single_line(
+        options.get("dockerfile_workdir"),
+        options.get("workdir"),
+        default=DEFAULT_WORKDIR,
+    )
+    copy_value = _first_single_line(
+        options.get("dockerfile_copy"),
+        default=DEFAULT_COPY,
+    )
     run_value = options.get("dockerfile_run") or options.get("run")
     cmd_value = options.get("dockerfile_cmd") or options.get("cmd") or _get_value(primary_service, "command")
 
@@ -169,31 +320,21 @@ def build_dockerfile(project: Mapping[str, Any] | Any) -> str:
         f"COPY {copy_value}",
     ]
 
-    if run_value:
-        if isinstance(run_value, str):
-            lines.append(f"RUN {run_value}")
-        else:
-            for run_cmd in _normalize_collection(run_value):
-                if run_cmd:
-                    lines.append(f"RUN {run_cmd}")
+    for run_command in _run_commands(run_value):
+        lines.append(f"RUN {run_command}")
 
     expose_ports = options.get("dockerfile_expose")
-    if expose_ports is None:
+    if expose_ports is None or (
+        isinstance(expose_ports, str) and not expose_ports.strip()
+    ):
         expose_ports = _container_ports_from_service(primary_service)
 
-    for port in _normalize_collection(expose_ports):
-        if port:
-            lines.append(f"EXPOSE {port}")
+    for port in _normalize_expose_ports(expose_ports):
+        lines.append(f"EXPOSE {port}")
 
-    if cmd_value:
-        if isinstance(cmd_value, str):
-            escaped = cmd_value.replace('"', '\\"')
-            lines.append(f'CMD ["sh", "-c", "{escaped}"]')
-        else:
-            cmd_parts = [str(part) for part in _normalize_collection(cmd_value) if part]
-            if cmd_parts:
-                encoded = ", ".join(f'"{part}"' for part in cmd_parts)
-                lines.append(f"CMD [{encoded}]")
+    cmd_instruction = _cmd_instruction(cmd_value)
+    if cmd_instruction:
+        lines.append(cmd_instruction)
 
     return "\n".join(lines) + "\n"
 
