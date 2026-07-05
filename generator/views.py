@@ -24,9 +24,9 @@ from .models import (
 from .yaml_builder import build_output
 
 
-def _refresh_project_output(project: ConfigProject) -> None:
-    project.output_text = build_output(project)
-    project.save(update_fields=["output_text", "updated_at"])
+def _touch_project(project: ConfigProject) -> None:
+    project.save(update_fields=["updated_at"])
+
 
 @login_required
 def project_list(request: HttpRequest) -> HttpResponse:
@@ -50,6 +50,7 @@ def project_detail(request: HttpRequest, project_id: int) -> HttpResponse:
             "options": options,
             "networks": networks,
             "volumes": volumes,
+            "generated_output": build_output(project),
         },
     )
 
@@ -61,7 +62,6 @@ def project_create(request: HttpRequest) -> HttpResponse:
             project = form.save(commit=False)
             project.owner = request.user
             project.save()
-            _refresh_project_output(project)
             messages.success(request, "Project created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -77,7 +77,6 @@ def project_edit(request: HttpRequest, project_id: int) -> HttpResponse:
         form = ConfigProjectForm(request.POST, instance=project)
         if form.is_valid():
             form.save()
-            _refresh_project_output(project)
             messages.success(request, "Project updated successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -151,7 +150,7 @@ def service_create(request: HttpRequest, project_id: int) -> HttpResponse:
             service = form.save(commit=False)
             service.project = project
             service.save()
-            _refresh_project_output(project)
+            _touch_project(project)
             messages.success(request, "Service created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -168,7 +167,7 @@ def service_edit(request: HttpRequest, project_id: int, service_id: int) -> Http
         form = ServiceForm(request.POST, instance=service)
         if form.is_valid():
             form.save()
-            _refresh_project_output(project)
+            _touch_project(project)
             messages.success(request, "Service updated successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -183,7 +182,7 @@ def service_delete(request: HttpRequest, project_id: int, service_id: int) -> Ht
 
     if request.method == "POST":
         service.delete()
-        _refresh_project_output(project)
+        _touch_project(project)
         messages.success(request, "Service deleted successfully.")
 
         return redirect("generator:project_detail", project_id=project.id)
@@ -201,7 +200,7 @@ def option_create(request: HttpRequest, project_id: int) -> HttpResponse:
             option = form.save(commit=False)
             option.project = project
             option.save()
-            _refresh_project_output(project)
+            _touch_project(project)
             messages.success(request, "Option created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -218,7 +217,7 @@ def option_edit(request: HttpRequest, project_id: int, option_id: int) -> HttpRe
         form = ProjectOptionForm(request.POST, instance=option)
         if form.is_valid():
             form.save()
-            _refresh_project_output(project)
+            _touch_project(project)
             messages.success(request, "Option updated successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -233,7 +232,7 @@ def option_delete(request: HttpRequest, project_id: int, option_id: int) -> Http
 
     if request.method == "POST":
         option.delete()
-        _refresh_project_output(project)
+        _touch_project(project)
         messages.success(request, "Option deleted successfully.")
         return redirect("generator:project_detail", project_id=project.id)
 
@@ -250,7 +249,7 @@ def network_create(request: HttpRequest, project_id: int) -> HttpResponse:
             network = form.save(commit=False)
             network.project = project
             network.save()
-            _refresh_project_output(project)
+            _touch_project(project)
             messages.success(request, "Network created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -267,7 +266,7 @@ def network_edit(request: HttpRequest, project_id: int, network_id: int) -> Http
         form = NetworkForm(request.POST, instance=network)
         if form.is_valid():
             form.save()
-            _refresh_project_output(project)
+            _touch_project(project)
             messages.success(request, "Network updated successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -282,7 +281,7 @@ def network_delete(request: HttpRequest, project_id: int, network_id: int) -> Ht
 
     if request.method == "POST":
         network.delete()
-        _refresh_project_output(project)
+        _touch_project(project)
         messages.success(request, "Network deleted successfully.")
         return redirect("generator:project_detail", project_id=project.id)
 
@@ -299,7 +298,7 @@ def volume_create(request: HttpRequest, project_id: int) -> HttpResponse:
             volume = form.save(commit=False)
             volume.project = project
             volume.save()
-            _refresh_project_output(project)
+            _touch_project(project)
             messages.success(request, "Volume created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -316,7 +315,7 @@ def volume_edit(request: HttpRequest, project_id: int, volume_id: int) -> HttpRe
         form = NamedVolumeForm(request.POST, instance=volume)
         if form.is_valid():
             form.save()
-            _refresh_project_output(project)
+            _touch_project(project)
             messages.success(request, "Volume updated successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
@@ -331,7 +330,7 @@ def volume_delete(request: HttpRequest, project_id: int, volume_id: int) -> Http
 
     if request.method == "POST":
         volume.delete()
-        _refresh_project_output(project)
+        _touch_project(project)
         messages.success(request, "Volume deleted successfully.")
         return redirect("generator:project_detail", project_id=project.id)
 
