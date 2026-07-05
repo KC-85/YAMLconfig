@@ -299,6 +299,91 @@ class YamlBuilderDockerfileTests(TestCase):
         self.assertEqual(output.count("RUN "), 2)
 
 
+class ProjectOptionScopeTests(TestCase):
+    """Options should only affect the generator for their declared scope."""
+
+    def test_compose_ignores_dockerfile_options(self):
+        project = {
+            "services": [],
+            "options": [
+                {
+                    "scope": "dockerfile",
+                    "key": "dockerfile_run",
+                    "value": "pip install unsafe-in-compose",
+                },
+                {
+                    "scope": "docker-compose",
+                    "key": "name",
+                    "value": "scoped-compose-project",
+                },
+            ],
+        }
+
+        output = build_compose_yaml(project)
+
+        self.assertIn("name: scoped-compose-project", output)
+        self.assertNotIn("dockerfile_run", output)
+        self.assertNotIn("unsafe-in-compose", output)
+
+    def test_dockerfile_ignores_compose_options(self):
+        project = {
+            "services": [{"name": "web", "image": "python:3.13-slim"}],
+            "options": [
+                {
+                    "scope": "docker-compose",
+                    "key": "dockerfile_from",
+                    "value": "alpine:should-not-be-used",
+                },
+                {
+                    "scope": "dockerfile",
+                    "key": "dockerfile_workdir",
+                    "value": "/srv/app",
+                },
+            ],
+        }
+
+        output = build_dockerfile(project)
+
+        self.assertIn("FROM python:3.13-slim", output)
+        self.assertIn("WORKDIR /srv/app", output)
+        self.assertNotIn("alpine:should-not-be-used", output)
+
+    def test_unscoped_dictionary_options_remain_backwards_compatible(self):
+        project = {
+            "services": [],
+            "options": [
+                {"key": "dockerfile_run", "value": "echo legacy-dockerfile"},
+                {"key": "name", "value": "legacy-compose"},
+            ],
+        }
+
+        compose_output = build_compose_yaml(project)
+        dockerfile_output = build_dockerfile(project)
+
+        self.assertIn("name: legacy-compose", compose_output)
+        self.assertNotIn("dockerfile_run", compose_output)
+        self.assertIn("RUN echo legacy-dockerfile", dockerfile_output)
+        self.assertNotIn("legacy-compose", dockerfile_output)
+
+    def test_same_key_can_exist_once_in_each_scope(self):
+        project = ConfigProject.objects.create(name="scoped-options")
+
+        ProjectOption.objects.create(
+            project=project,
+            scope=ProjectOption.Scope.DOCKER_COMPOSE,
+            key="name",
+            value="compose-name",
+        )
+        ProjectOption.objects.create(
+            project=project,
+            scope=ProjectOption.Scope.DOCKERFILE,
+            key="name",
+            value="dockerfile-value",
+        )
+
+        self.assertEqual(project.options.filter(key="name").count(), 2)
+
+
 class ProjectCrudTests(TestCase):
     """Integration tests for CRUD operations."""
 
@@ -384,6 +469,7 @@ class ProjectCrudTests(TestCase):
         )
         option = ProjectOption.objects.create(
             project=project,
+            scope=ProjectOption.Scope.DOCKERFILE,
             key="dockerfile_run",
             value="regression-install-command",
         )
@@ -631,11 +717,19 @@ class ProjectCrudTests(TestCase):
         
         self.client.post(
             reverse("generator:option_create", args=[project.id]),
-            {"key": "dockerfile_run", "value": "pip install -r requirements.txt"},
+            {
+                "scope": ProjectOption.Scope.DOCKERFILE,
+                "key": "dockerfile_run",
+                "value": "pip install -r requirements.txt",
+            },
         )
         
         project.refresh_from_db()
         self.assertIn("RUN pip install -r requirements.txt", project.output_text)
+        self.assertEqual(
+            project.options.get(key="dockerfile_run").scope,
+            ProjectOption.Scope.DOCKERFILE,
+        )
 
     def test_project_download_compose_returns_attachment(self):
         """Compose download should return attachment for owned project."""

@@ -28,7 +28,16 @@ Each service should include:
 - `version`: compose version (default: `3.8`)
 - `networks`: list of network entries
 - `named_volumes` or `volumes`: list of named volume entries
-- `options`: list of key/value entries used as global options and Dockerfile overrides
+- `options`: list of scoped key/value entries
+
+Each option supports:
+
+- `scope`: `docker-compose` or `dockerfile`
+- `key`
+- `value`
+
+For backward compatibility, dictionary input without `scope` treats known
+Dockerfile keys as `dockerfile` and all other keys as `docker-compose`.
 
 ### Optional service fields
 
@@ -45,7 +54,7 @@ Each service should include:
 
 ### Option keys used by Dockerfile generation
 
-These are read from `project.options`:
+These are read from options whose scope is `dockerfile`:
 
 - `dockerfile_service` (or `primary_service`) selects the service used for image, port, and command defaults
 - `dockerfile_from` (or `base_image`)
@@ -82,10 +91,11 @@ project = {
 	"networks": [{"name": "appnet"}],
 	"named_volumes": [{"name": "pgdata"}],
 	"options": [
-		{"key": "dockerfile_from", "value": "python:3.12-slim"},
-		{"key": "dockerfile_workdir", "value": "/app"},
-		{"key": "dockerfile_run", "value": "pip install -r requirements.txt"},
-		{"key": "dockerfile_cmd", "value": "python manage.py runserver 0.0.0.0:8000"},
+		{"scope": "dockerfile", "key": "dockerfile_from", "value": "python:3.12-slim"},
+		{"scope": "dockerfile", "key": "dockerfile_workdir", "value": "/app"},
+		{"scope": "dockerfile", "key": "dockerfile_run", "value": "pip install -r requirements.txt"},
+		{"scope": "dockerfile", "key": "dockerfile_cmd", "value": "python manage.py runserver 0.0.0.0:8000"},
+		{"scope": "docker-compose", "key": "name", "value": "example-project"},
 	],
 }
 ```
