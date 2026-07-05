@@ -12,6 +12,22 @@ DEFAULT_BASE_IMAGE = "python:3.12-slim"
 DEFAULT_WORKDIR = "/app"
 DEFAULT_COPY = ". ."
 VALID_EXPOSE_PROTOCOLS = {"tcp", "udp"}
+DOCKERFILE_OPTION_KEYS = frozenset(
+    {
+        "base_image",
+        "cmd",
+        "dockerfile_cmd",
+        "dockerfile_copy",
+        "dockerfile_expose",
+        "dockerfile_from",
+        "dockerfile_run",
+        "dockerfile_service",
+        "dockerfile_workdir",
+        "primary_service",
+        "run",
+        "workdir",
+    }
+)
 
 def _get_value(source: Mapping[str, Any] | Any, key: str, default: Any = None) -> Any:
     if isinstance(source, Mapping):
@@ -113,12 +129,7 @@ def _compose_dict(project: Mapping[str, Any] | Any) -> dict[str, Any]:
                 volume_data.update(extra)
             data["volumes"][volume_name] = volume_data
 
-    options = _normalize_collection(_get_value(project, "options", []))
-    for option in options:
-        option_key = _get_value(option, "key", "")
-        if not option_key:
-            continue
-        data[option_key] = _get_value(option, "value", "")
+    data.update(_options_to_dict(project, scope=DOCKER_COMPOSE))
 
     return data
 
@@ -127,10 +138,27 @@ def build_compose_yaml(project: Mapping[str, Any] | Any) -> str:
     return yaml.safe_dump(_compose_dict(project), sort_keys=False)
 
 
-def _options_to_dict(project: Mapping[str, Any] | Any) -> dict[str, Any]:
+def _option_scope(option: Mapping[str, Any] | Any) -> str | None:
+    explicit_scope = _get_value(option, "scope")
+    if explicit_scope in {DOCKER_COMPOSE, DOCKERFILE}:
+        return explicit_scope
+    if explicit_scope not in (None, ""):
+        return None
+
+    key = str(_get_value(option, "key", ""))
+    return DOCKERFILE if key in DOCKERFILE_OPTION_KEYS else DOCKER_COMPOSE
+
+
+def _options_to_dict(
+    project: Mapping[str, Any] | Any,
+    *,
+    scope: str,
+) -> dict[str, Any]:
     options_dict: dict[str, Any] = {}
     options = _normalize_collection(_get_value(project, "options", []))
     for option in options:
+        if _option_scope(option) != scope:
+            continue
         key = _get_value(option, "key", "")
         if not key:
             continue
@@ -292,7 +320,7 @@ def _cmd_instruction(value: Any) -> str | None:
 
 
 def build_dockerfile(project: Mapping[str, Any] | Any) -> str:
-    options = _options_to_dict(project)
+    options = _options_to_dict(project, scope=DOCKERFILE)
     services = _normalize_collection(_get_value(project, "services", []))
     primary_service = _select_primary_service(services, options)
 
