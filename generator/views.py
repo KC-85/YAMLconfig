@@ -145,7 +145,7 @@ def service_create(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
 
     if request.method == "POST":
-        form = ServiceForm(request.POST)
+        form = ServiceForm(request.POST, project=project)
         if form.is_valid():
             service = form.save(commit=False)
             service.project = project
@@ -154,7 +154,7 @@ def service_create(request: HttpRequest, project_id: int) -> HttpResponse:
             messages.success(request, "Service created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
-        form = ServiceForm()
+        form = ServiceForm(project=project)
 
     return render(request, "generator/index.html", {"form": form, "project": project})
 
@@ -164,14 +164,14 @@ def service_edit(request: HttpRequest, project_id: int, service_id: int) -> Http
     service = get_object_or_404(Service, id=service_id, project=project)
 
     if request.method == "POST":
-        form = ServiceForm(request.POST, instance=service)
+        form = ServiceForm(request.POST, instance=service, project=project)
         if form.is_valid():
             form.save()
             _touch_project(project)
             messages.success(request, "Service updated successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
-        form = ServiceForm(instance=service)
+        form = ServiceForm(instance=service, project=project)
 
     return render(request, "generator/index.html", {"form": form, "project": project, "service": service})
 
@@ -195,7 +195,7 @@ def option_create(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
 
     if request.method == "POST":
-        form = ProjectOptionForm(request.POST)
+        form = ProjectOptionForm(request.POST, project=project)
         if form.is_valid():
             option = form.save(commit=False)
             option.project = project
@@ -204,7 +204,10 @@ def option_create(request: HttpRequest, project_id: int) -> HttpResponse:
             messages.success(request, "Option created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
-        form = ProjectOptionForm(initial={"scope": project.target_type})
+        form = ProjectOptionForm(
+            initial={"scope": project.target_type},
+            project=project,
+        )
 
     return render(request, "generator/index.html", {"form": form, "project": project})
 
@@ -214,14 +217,18 @@ def option_edit(request: HttpRequest, project_id: int, option_id: int) -> HttpRe
     option = get_object_or_404(ProjectOption, id=option_id, project=project)
 
     if request.method == "POST":
-        form = ProjectOptionForm(request.POST, instance=option)
+        form = ProjectOptionForm(
+            request.POST,
+            instance=option,
+            project=project,
+        )
         if form.is_valid():
             form.save()
             _touch_project(project)
             messages.success(request, "Option updated successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
-        form = ProjectOptionForm(instance=option)
+        form = ProjectOptionForm(instance=option, project=project)
 
     return render(request, "generator/index.html", {"form": form, "project": project, "option": option})
 
@@ -244,7 +251,7 @@ def network_create(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
 
     if request.method == "POST":
-        form = NetworkForm(request.POST)
+        form = NetworkForm(request.POST, project=project)
         if form.is_valid():
             network = form.save(commit=False)
             network.project = project
@@ -253,7 +260,7 @@ def network_create(request: HttpRequest, project_id: int) -> HttpResponse:
             messages.success(request, "Network created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
-        form = NetworkForm()
+        form = NetworkForm(project=project)
 
     return render(request, "generator/index.html", {"form": form, "project": project})
 
@@ -263,14 +270,18 @@ def network_edit(request: HttpRequest, project_id: int, network_id: int) -> Http
     network = get_object_or_404(Network, id=network_id, project=project)
 
     if request.method == "POST":
-        form = NetworkForm(request.POST, instance=network)
+        form = NetworkForm(
+            request.POST,
+            instance=network,
+            project=project,
+        )
         if form.is_valid():
             form.save()
             _touch_project(project)
             messages.success(request, "Network updated successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
-        form = NetworkForm(instance=network)
+        form = NetworkForm(instance=network, project=project)
 
     return render(request, "generator/index.html", {"form": form, "project": project, "network": network})
 
@@ -293,7 +304,7 @@ def volume_create(request: HttpRequest, project_id: int) -> HttpResponse:
     project = get_object_or_404(ConfigProject, id=project_id, owner=request.user)
 
     if request.method == "POST":
-        form = NamedVolumeForm(request.POST)
+        form = NamedVolumeForm(request.POST, project=project)
         if form.is_valid():
             volume = form.save(commit=False)
             volume.project = project
@@ -302,7 +313,7 @@ def volume_create(request: HttpRequest, project_id: int) -> HttpResponse:
             messages.success(request, "Volume created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
-        form = NamedVolumeForm()
+        form = NamedVolumeForm(project=project)
 
     return render(request, "generator/index.html", {"form": form, "project": project})
 
@@ -312,14 +323,18 @@ def volume_edit(request: HttpRequest, project_id: int, volume_id: int) -> HttpRe
     volume = get_object_or_404(NamedVolume, id=volume_id, project=project)
 
     if request.method == "POST":
-        form = NamedVolumeForm(request.POST, instance=volume)
+        form = NamedVolumeForm(
+            request.POST,
+            instance=volume,
+            project=project,
+        )
         if form.is_valid():
             form.save()
             _touch_project(project)
             messages.success(request, "Volume updated successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
-        form = NamedVolumeForm(instance=volume)
+        form = NamedVolumeForm(instance=volume, project=project)
 
     return render(request, "generator/index.html", {"form": form, "project": project, "volume": volume})
 

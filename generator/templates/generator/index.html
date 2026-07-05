@@ -94,6 +94,9 @@
 					<h2 class="text-xl font-bold text-slate-900 mb-4">Create Project</h2>
 					<form method="post">
 						{% csrf_token %}
+						{% for error in form.non_field_errors %}
+							<p class="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{{ error }}</p>
+						{% endfor %}
 						<div class="space-y-4">
 							{% for field in form %}
 								<div>
@@ -173,6 +176,9 @@
 							<h3 class="text-lg font-bold text-slate-900 mb-4">Edit Item</h3>
 							<form method="post">
 								{% csrf_token %}
+								{% for error in form.non_field_errors %}
+									<p class="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{{ error }}</p>
+								{% endfor %}
 								<div class="space-y-4">
 									{% for field in form %}
 										<div>

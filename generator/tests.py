@@ -3,9 +3,19 @@ import zipfile
 from io import BytesIO
 
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from django.urls import reverse
 
+from .forms import (
+    JSONObjectField,
+    KeyValueField,
+    LineListField,
+    NamedVolumeForm,
+    NetworkForm,
+    ProjectOptionForm,
+    ServiceForm,
+)
 from .models import ConfigProject, Service, Network, NamedVolume, ProjectOption
 from .yaml_builder import build_compose_yaml, build_dockerfile, build_output
 
@@ -384,6 +394,178 @@ class ProjectOptionScopeTests(TestCase):
         self.assertEqual(project.options.filter(key="name").count(), 2)
 
 
+class GeneratorFormUsabilityTests(TestCase):
+    """Structured form fields should accept readable text and legacy JSON."""
+
+    @staticmethod
+    def service_data(**overrides):
+        data = {
+            "name": "web",
+            "image": "nginx:latest",
+            "build_context": "",
+            "container_name": "",
+            "command": "",
+            "restart_policy": "",
+            "ports": "",
+            "volumes": "",
+            "environment": "",
+            "depends_on": "",
+            "extra": "",
+        }
+        data.update(overrides)
+        return data
+
+    def test_line_list_field_accepts_lines_and_legacy_json(self):
+        field = LineListField()
+
+        self.assertEqual(
+            field.clean("8000:80\n8443:443\n8000:80"),
+            ["8000:80", "8443:443"],
+        )
+        self.assertEqual(
+            field.clean('["8000:80", 443]'),
+            ["8000:80", "443"],
+        )
+
+    def test_key_value_field_accepts_lines_and_legacy_json(self):
+        field = KeyValueField()
+
+        self.assertEqual(
+            field.clean("APP_ENV=development\nTOKEN=a=b\nEMPTY="),
+            {
+                "APP_ENV": "development",
+                "TOKEN": "a=b",
+                "EMPTY": "",
+            },
+        )
+        self.assertEqual(
+            field.clean('{"DEBUG": true, "PORT": 8000}'),
+            {"DEBUG": True, "PORT": 8000},
+        )
+
+    def test_json_object_field_rejects_non_object_json(self):
+        field = JSONObjectField()
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Enter a JSON object using curly braces",
+        ):
+            field.clean('["not", "an", "object"]')
+
+    def test_service_form_parses_readable_fields_and_validates_dependencies(self):
+        project = ConfigProject.objects.create(name="forms-project")
+        Service.objects.create(project=project, name="database")
+        form = ServiceForm(
+            data=self.service_data(
+                ports="8000:80\n8443:443",
+                volumes="./data:/app/data\ncache:/app/cache",
+                environment="APP_ENV=development\nDEBUG=true",
+                depends_on="database",
+                extra='{"healthcheck": {"test": ["CMD", "curl", "localhost"]}}',
+            ),
+            project=project,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["ports"], ["8000:80", "8443:443"])
+        self.assertEqual(
+            form.cleaned_data["volumes"],
+            ["./data:/app/data", "cache:/app/cache"],
+        )
+        self.assertEqual(
+            form.cleaned_data["environment"],
+            {"APP_ENV": "development", "DEBUG": "true"},
+        )
+        self.assertEqual(form.cleaned_data["depends_on"], ["database"])
+
+    def test_service_form_rejects_unknown_and_self_dependencies(self):
+        project = ConfigProject.objects.create(name="forms-project")
+
+        unknown_form = ServiceForm(
+            data=self.service_data(depends_on="missing-service"),
+            project=project,
+        )
+        self.assertFalse(unknown_form.is_valid())
+        self.assertIn("Unknown service(s): missing-service", unknown_form.errors["depends_on"][0])
+
+        self_form = ServiceForm(
+            data=self.service_data(depends_on="web"),
+            project=project,
+        )
+        self.assertFalse(self_form.is_valid())
+        self.assertIn("cannot depend on itself", self_form.errors["depends_on"][0])
+
+    def test_service_form_rejects_duplicate_names_before_database_save(self):
+        project = ConfigProject.objects.create(name="forms-project")
+        Service.objects.create(project=project, name="web")
+        form = ServiceForm(data=self.service_data(), project=project)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("already exists", form.errors["name"][0])
+
+    def test_network_and_volume_forms_parse_key_value_fields(self):
+        project = ConfigProject.objects.create(name="forms-project")
+        network_form = NetworkForm(
+            data={
+                "name": "frontend",
+                "driver": "bridge",
+                "external": False,
+                "attachable": False,
+                "internal": False,
+                "labels": "environment=development",
+                "driver_opts": "com.docker.network.driver.mtu=1450",
+                "extra": "{}",
+            },
+            project=project,
+        )
+        volume_form = NamedVolumeForm(
+            data={
+                "name": "data",
+                "driver": "local",
+                "external": False,
+                "labels": "backup=daily",
+                "driver_opts": "type=none",
+                "extra": "{}",
+            },
+            project=project,
+        )
+
+        self.assertTrue(network_form.is_valid(), network_form.errors)
+        self.assertEqual(
+            network_form.cleaned_data["labels"],
+            {"environment": "development"},
+        )
+        self.assertTrue(volume_form.is_valid(), volume_form.errors)
+        self.assertEqual(
+            volume_form.cleaned_data["driver_opts"],
+            {"type": "none"},
+        )
+
+    def test_project_option_form_rejects_keys_in_the_wrong_scope(self):
+        project = ConfigProject.objects.create(name="forms-project")
+        compose_form = ProjectOptionForm(
+            data={
+                "scope": ProjectOption.Scope.DOCKER_COMPOSE,
+                "key": "dockerfile_run",
+                "value": "echo no",
+            },
+            project=project,
+        )
+        dockerfile_form = ProjectOptionForm(
+            data={
+                "scope": ProjectOption.Scope.DOCKERFILE,
+                "key": "unknown_key",
+                "value": "unused",
+            },
+            project=project,
+        )
+
+        self.assertFalse(compose_form.is_valid())
+        self.assertIn("Change the scope to Dockerfile", compose_form.errors["key"][0])
+        self.assertFalse(dockerfile_form.is_valid())
+        self.assertIn("not used by Dockerfile generation", dockerfile_form.errors["key"][0])
+
+
 class ProjectCrudTests(TestCase):
     """Integration tests for CRUD operations."""
 
@@ -596,6 +778,69 @@ class ProjectCrudTests(TestCase):
         output = self._get_live_output(project)
         self.assertIn("web:", output)
         self.assertIn("nginx:latest", output)
+
+    def test_service_create_accepts_line_based_structured_fields(self):
+        """The service view should save readable list and key-value input."""
+        project = ConfigProject.objects.create(
+            name="project", owner=self.user1, target_type="docker-compose"
+        )
+        Service.objects.create(project=project, name="database")
+        self.client.force_login(self.user1)
+
+        response = self.client.post(
+            reverse("generator:service_create", args=[project.id]),
+            {
+                "name": "web",
+                "image": "nginx:latest",
+                "build_context": "",
+                "container_name": "",
+                "command": "",
+                "restart_policy": "",
+                "ports": "8000:80\n8443:443",
+                "volumes": "./data:/usr/share/nginx/html",
+                "environment": "APP_ENV=development\nDEBUG=true",
+                "depends_on": "database",
+                "extra": "{}",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        service = project.services.get(name="web")
+        self.assertEqual(service.ports, ["8000:80", "8443:443"])
+        self.assertEqual(
+            service.environment,
+            {"APP_ENV": "development", "DEBUG": "true"},
+        )
+        self.assertEqual(service.depends_on, ["database"])
+
+    def test_duplicate_service_name_returns_a_form_error(self):
+        """Duplicate names should not reach the database constraint."""
+        project = ConfigProject.objects.create(
+            name="project", owner=self.user1, target_type="docker-compose"
+        )
+        Service.objects.create(project=project, name="web")
+        self.client.force_login(self.user1)
+
+        response = self.client.post(
+            reverse("generator:service_create", args=[project.id]),
+            {
+                "name": "web",
+                "image": "nginx:latest",
+                "build_context": "",
+                "container_name": "",
+                "command": "",
+                "restart_policy": "",
+                "ports": "",
+                "volumes": "",
+                "environment": "",
+                "depends_on": "",
+                "extra": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already exists in the project")
+        self.assertEqual(project.services.filter(name="web").count(), 1)
 
     def test_service_edit_is_reflected_in_live_output(self):
         """Editing a service should be reflected in the next preview."""

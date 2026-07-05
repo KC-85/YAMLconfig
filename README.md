@@ -52,6 +52,15 @@ Dockerfile keys as `dockerfile` and all other keys as `docker-compose`.
 - `depends_on`
 - `extra` (dict merged directly into the service block)
 
+## Web Form Input
+
+The web editor accepts one value per line for ports, volume mounts, and service
+dependencies. Environment variables, labels, and driver options use one
+`KEY=value` pair per line. Existing JSON lists and objects remain supported.
+
+The `extra` fields accept JSON objects for advanced settings. Service
+dependencies must refer to services that already exist in the same project.
+
 ### Option keys used by Dockerfile generation
 
 These are read from options whose scope is `dockerfile`:
