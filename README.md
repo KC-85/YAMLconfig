@@ -47,12 +47,17 @@ Each service should include:
 
 These are read from `project.options`:
 
+- `dockerfile_service` (or `primary_service`) selects the service used for image, port, and command defaults
 - `dockerfile_from` (or `base_image`)
 - `dockerfile_workdir` (or `workdir`)
 - `dockerfile_copy`
-- `dockerfile_run` (or `run`)
+- `dockerfile_run` (or `run`); each non-empty line becomes a `RUN` instruction
 - `dockerfile_cmd` (or `cmd`)
-- `dockerfile_expose`
+- `dockerfile_expose`; accepts comma/whitespace-separated ports or a JSON list, with optional `/tcp` or `/udp`
+
+If no service is selected explicitly, Dockerfile generation uses the first
+service with a non-empty image. It falls back to `python:3.12-slim` when no
+usable image is available.
 
 ## Example Input
 
