@@ -20,7 +20,6 @@ class ConfigProject(models.Model):
 		choices=TargetType.choices,
 		default=TargetType.DOCKER_COMPOSE,
 	)
-	output_text = models.TextField(blank=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 
