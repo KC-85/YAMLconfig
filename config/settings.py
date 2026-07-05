@@ -24,9 +24,8 @@ INSTALLED_APPS = [
 	"django.contrib.messages",
 	"django.contrib.staticfiles",
 	"axes",
-	# "django.contrib.sites",  # allauth dependency (disabled for now)
-	# "allauth",  # disabled until email/app-password setup is ready
-	# "allauth.account",  # disabled until email/app-password setup is ready
+	"allauth",
+	"allauth.account",
 	"generator",
 ]
 
@@ -37,7 +36,7 @@ MIDDLEWARE = [
 	"django.middleware.csrf.CsrfViewMiddleware",
 	"django.contrib.auth.middleware.AuthenticationMiddleware",
 	"axes.middleware.AxesMiddleware",
-	# "allauth.account.middleware.AccountMiddleware",  # allauth disabled for now
+	"allauth.account.middleware.AccountMiddleware",
 	"django.contrib.messages.middleware.MessageMiddleware",
 	"django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -97,8 +96,6 @@ STATICFILES_DIRS = [path for path in _static_dirs if path.exists()]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# SITE_ID = 1  # allauth disabled for now
-
 # Prefer strong password hashing when available (argon2 if installed)
 PASSWORD_HASHERS = [
 	"django.contrib.auth.hashers.Argon2PasswordHasher",
@@ -124,7 +121,7 @@ PASSWORD_RESET_TIMEOUT = int(os.getenv("DJANGO_PASSWORD_RESET_TIMEOUT", "3600"))
 AUTHENTICATION_BACKENDS = [
 	"axes.backends.AxesStandaloneBackend",
 	"django.contrib.auth.backends.ModelBackend",
-	# "allauth.account.auth_backends.AuthenticationBackend",  # allauth disabled for now
+	"allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 AXES_FAILURE_LIMIT = int(os.getenv("AXES_FAILURE_LIMIT", "5"))
@@ -136,10 +133,22 @@ LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
-# Allauth account settings kept for later re-enable.
-# ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-# ACCOUNT_UNIQUE_EMAIL = True
-# ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_LOGOUT_ON_GET = False
+ACCOUNT_ADAPTER = "generator.account_adapter.AccountAdapter"
+ACCOUNT_FORMS = {
+	"add_email": "generator.account_forms.AddEmailForm",
+	"change_password": "generator.account_forms.ChangePasswordForm",
+	"login": "generator.account_forms.LoginForm",
+	"reset_password": "generator.account_forms.ResetPasswordForm",
+	"reset_password_from_key": "generator.account_forms.ResetPasswordKeyForm",
+	"set_password": "generator.account_forms.SetPasswordForm",
+	"signup": "generator.account_forms.SignupForm",
+}
 
 if DEBUG:
 	EMAIL_BACKEND = os.getenv(

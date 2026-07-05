@@ -74,8 +74,9 @@
 							<strong class="text-slate-900">{{ user.get_username }}</strong>
 						</span>
 						<div class="flex items-center gap-2">
-							<a class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors" href="{% url 'password_change' %}">Password</a>
-							<form method="post" action="{% url 'logout' %}" class="inline">
+							<a class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors" href="{% url 'account_email' %}">Email</a>
+							<a class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors" href="{% url 'account_change_password' %}">Password</a>
+							<form method="post" action="{% url 'account_logout' %}" class="inline">
 								{% csrf_token %}
 								<button class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 transition-colors" type="submit">Logout</button>
 							</form>
@@ -83,7 +84,8 @@
 					</div>
 				{% else %}
 					<div class="flex items-center gap-2 text-sm">
-						<a class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 transition-colors" href="{% url 'login' %}">Login</a>
+						<a class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors" href="{% url 'account_signup' %}">Sign up</a>
+						<a class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 transition-colors" href="{% url 'account_login' %}">Login</a>
 					</div>
 				{% endif %}
 			</nav>
