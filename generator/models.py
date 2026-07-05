@@ -60,22 +60,34 @@ class Service(models.Model):
 
 
 class ProjectOption(models.Model):
+	class Scope(models.TextChoices):
+		DOCKER_COMPOSE = "docker-compose", "Docker Compose"
+		DOCKERFILE = "dockerfile", "Dockerfile"
+
 	project = models.ForeignKey(
 		ConfigProject,
 		on_delete=models.CASCADE,
 		related_name="options",
 	)
+	scope = models.CharField(
+		max_length=32,
+		choices=Scope.choices,
+		default=Scope.DOCKER_COMPOSE,
+	)
 	key = models.CharField(max_length=100)
 	value = models.TextField(blank=True)
 
 	class Meta:
-		ordering = ["key"]
+		ordering = ["scope", "key"]
 		constraints = [
-			models.UniqueConstraint(fields=["project", "key"], name="uniq_project_option_key"),
+			models.UniqueConstraint(
+				fields=["project", "scope", "key"],
+				name="uniq_project_option_scope_key",
+			),
 		]
 
 	def __str__(self) -> str:
-		return f"{self.project.name}: {self.key}"
+		return f"{self.project.name}: {self.scope}/{self.key}"
 
 
 class Network(models.Model):
