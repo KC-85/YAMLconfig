@@ -1,0 +1,20 @@
+{% extends "account/base.html" %}
+
+{% block title %}Confirm email | YAMLconfig{% endblock %}
+
+{% block account_content %}
+	<h1 class="text-2xl font-semibold text-slate-900">Confirm email address</h1>
+	{% if confirmation and can_confirm %}
+		<p class="mt-2 text-sm text-slate-600">Confirm <strong>{{ confirmation.email_address.email }}</strong> as your account email address.</p>
+		<form method="post" action="{% url 'account_confirm_email' confirmation.key %}" class="mt-6">
+			{% csrf_token %}
+			{{ redirect_field }}
+			<button type="submit" class="rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-700">Confirm email</button>
+		</form>
+	{% elif confirmation %}
+		<p class="mt-2 text-sm text-rose-700">This address is already attached to another account.</p>
+	{% else %}
+		<p class="mt-2 text-sm text-rose-700">This confirmation link has expired or is invalid.</p>
+		<a href="{% url 'account_email' %}" class="mt-6 inline-flex rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-700">Manage email addresses</a>
+	{% endif %}
+{% endblock %}

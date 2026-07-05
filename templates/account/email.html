@@ -1,0 +1,41 @@
+{% extends "account/base.html" %}
+
+{% block title %}Email addresses | YAMLconfig{% endblock %}
+
+{% block account_content %}
+	<h1 class="text-2xl font-semibold text-slate-900">Email addresses</h1>
+
+	{% if emailaddresses %}
+		<form method="post" action="{% url 'account_email' %}" class="mt-6 space-y-4">
+			{% csrf_token %}
+			<div class="space-y-2">
+				{% for radio in emailaddress_radios %}
+					{% with emailaddress=radio.emailaddress %}
+						<label class="flex items-center gap-3 rounded-md border border-slate-200 p-3 text-sm text-slate-700">
+							<input type="radio" name="email" value="{{ emailaddress.email }}" id="{{ radio.id }}" {% if radio.checked %}checked{% endif %}>
+							<span>
+								{{ emailaddress.email }}
+								{% if emailaddress.primary %}<strong class="ml-1 text-cyan-700">Primary</strong>{% endif %}
+								{% if emailaddress.verified %}<span class="ml-1 text-emerald-700">Verified</span>{% else %}<span class="ml-1 text-amber-700">Unverified</span>{% endif %}
+							</span>
+						</label>
+					{% endwith %}
+				{% endfor %}
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<button type="submit" name="action_primary" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700">Make primary</button>
+				<button type="submit" name="action_send" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700">Resend verification</button>
+				<button type="submit" name="action_remove" class="rounded-md border border-rose-300 px-3 py-2 text-sm font-medium text-rose-700">Remove</button>
+			</div>
+		</form>
+	{% endif %}
+
+	{% if can_add_email %}
+		<h2 class="mt-8 text-lg font-semibold text-slate-900">Add another email</h2>
+		<form method="post" action="{% url 'account_email' %}" class="mt-4 space-y-4">
+			{% csrf_token %}
+			{% include "account/_form_fields.html" %}
+			<button type="submit" name="action_add" class="rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-700">Add email</button>
+		</form>
+	{% endif %}
+{% endblock %}
