@@ -110,3 +110,7 @@ from generator.yaml_builder import build_output
 compose_text = build_output(project, target_type="docker-compose")
 dockerfile_text = build_output(project, target_type="dockerfile")
 ```
+
+The web preview and download endpoints generate output from the current project
+records on every request. Generated files are derived data and are not cached in
+the database.

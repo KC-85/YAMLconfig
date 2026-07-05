@@ -397,6 +397,13 @@ class ProjectCrudTests(TestCase):
         )
         self.client.login = lambda *args, **kwargs: self.client.force_login(self.user1)
 
+    def _get_live_output(self, project: ConfigProject) -> str:
+        response = self.client.get(
+            reverse("generator:project_detail", args=[project.id])
+        )
+        self.assertEqual(response.status_code, 200)
+        return response.context["generated_output"]
+
     def test_project_create_requires_login(self):
         """Test that project creation requires authentication."""
         response = self.client.get(reverse("generator:project_create"))
@@ -562,8 +569,8 @@ class ProjectCrudTests(TestCase):
             r"Volumes:</span>\s*<span[^>]*>\s*1\s*</span>",
         )
 
-    def test_service_create_generates_output(self):
-        """Test that creating a service regenerates project output."""
+    def test_service_create_is_reflected_in_live_output(self):
+        """Creating a service should be reflected without a cached output write."""
         project = ConfigProject.objects.create(
             name="project", owner=self.user1, target_type="docker-compose"
         )
@@ -586,12 +593,12 @@ class ProjectCrudTests(TestCase):
             },
         )
         
-        project.refresh_from_db()
-        self.assertIn("web:", project.output_text)
-        self.assertIn("nginx:latest", project.output_text)
+        output = self._get_live_output(project)
+        self.assertIn("web:", output)
+        self.assertIn("nginx:latest", output)
 
-    def test_service_edit_regenerates_output(self):
-        """Test that editing a service regenerates project output."""
+    def test_service_edit_is_reflected_in_live_output(self):
+        """Editing a service should be reflected in the next preview."""
         project = ConfigProject.objects.create(
             name="project", owner=self.user1, target_type="docker-compose"
         )
@@ -617,12 +624,12 @@ class ProjectCrudTests(TestCase):
             },
         )
         
-        project.refresh_from_db()
-        self.assertIn("nginx:alpine", project.output_text)
-        self.assertNotIn("nginx:latest", project.output_text)
+        output = self._get_live_output(project)
+        self.assertIn("nginx:alpine", output)
+        self.assertNotIn("nginx:latest", output)
 
-    def test_service_delete_regenerates_output(self):
-        """Test that deleting a service regenerates project output."""
+    def test_service_delete_is_reflected_in_live_output(self):
+        """Deleting a service should be reflected in the next preview."""
         project = ConfigProject.objects.create(
             name="project", owner=self.user1, target_type="docker-compose"
         )
@@ -633,8 +640,8 @@ class ProjectCrudTests(TestCase):
             reverse("generator:service_delete", args=[project.id, service.id])
         )
         
-        project.refresh_from_db()
-        self.assertNotIn("web:", project.output_text)
+        output = self._get_live_output(project)
+        self.assertNotIn("web:", output)
 
     def test_network_metadata_in_output(self):
         """Test that network metadata is included in generated output."""
@@ -645,17 +652,11 @@ class ProjectCrudTests(TestCase):
             project=project, name="appnet", driver="bridge", external=False
         )
         self.client.login(username="user1", password="password123")
-        
-        # Refresh output by editing project
-        self.client.post(
-            reverse("generator:project_edit", args=[project.id]),
-            {"name": "project", "target_type": "docker-compose"},
-        )
-        
-        project.refresh_from_db()
-        self.assertIn("networks:", project.output_text)
-        self.assertIn("appnet:", project.output_text)
-        self.assertIn("bridge", project.output_text)
+
+        output = self._get_live_output(project)
+        self.assertIn("networks:", output)
+        self.assertIn("appnet:", output)
+        self.assertIn("bridge", output)
 
     def test_volume_metadata_in_output(self):
         """Test that volume metadata is included in generated output."""
@@ -666,17 +667,11 @@ class ProjectCrudTests(TestCase):
             project=project, name="data", driver="local", external=False
         )
         self.client.login(username="user1", password="password123")
-        
-        # Refresh output by editing project
-        self.client.post(
-            reverse("generator:project_edit", args=[project.id]),
-            {"name": "project", "target_type": "docker-compose"},
-        )
-        
-        project.refresh_from_db()
-        self.assertIn("volumes:", project.output_text)
-        self.assertIn("data:", project.output_text)
-        self.assertIn("local", project.output_text)
+
+        output = self._get_live_output(project)
+        self.assertIn("volumes:", output)
+        self.assertIn("data:", output)
+        self.assertIn("local", output)
 
     def test_delete_confirmation_view_has_flag(self):
         """Test that delete confirmation views pass is_delete_confirm flag."""
@@ -706,9 +701,66 @@ class ProjectCrudTests(TestCase):
         self.assertContains(response, "YAML IDE Preview")
         self.assertContains(response, 'id="yaml-ide-source"')
         self.assertContains(response, "codemirror")
+        self.assertIn("nginx:latest", response.context["generated_output"])
 
-    def test_option_create_updates_dockerfile_output(self):
-        """Test that options affecting Dockerfile are reflected in output."""
+    def test_project_detail_reflects_direct_database_changes(self):
+        """Direct ORM changes should appear without an explicit refresh step."""
+        project = ConfigProject.objects.create(
+            name="project", owner=self.user1, target_type="docker-compose"
+        )
+        service = Service.objects.create(
+            project=project,
+            name="web",
+            image="nginx:before",
+        )
+        self.client.force_login(self.user1)
+
+        before = self._get_live_output(project)
+        service.image = "nginx:after"
+        service.save(update_fields=["image"])
+        after = self._get_live_output(project)
+
+        self.assertIn("nginx:before", before)
+        self.assertIn("nginx:after", after)
+        self.assertNotIn("nginx:before", after)
+
+    def test_compose_preview_matches_compose_download(self):
+        """The Compose preview and download should use identical live output."""
+        project = ConfigProject.objects.create(
+            name="project", owner=self.user1, target_type="docker-compose"
+        )
+        Service.objects.create(project=project, name="web", image="nginx:latest")
+        self.client.force_login(self.user1)
+
+        preview = self._get_live_output(project)
+        download = self.client.get(
+            reverse("generator:project_download_compose", args=[project.id])
+        )
+
+        self.assertEqual(preview, download.content.decode("utf-8"))
+
+    def test_dockerfile_preview_matches_dockerfile_download(self):
+        """The Dockerfile preview and download should use identical live output."""
+        project = ConfigProject.objects.create(
+            name="project", owner=self.user1, target_type="dockerfile"
+        )
+        Service.objects.create(
+            project=project,
+            name="app",
+            image="python:3.13-slim",
+            command="python app.py",
+        )
+        self.client.force_login(self.user1)
+
+        preview = self._get_live_output(project)
+        download = self.client.get(
+            reverse("generator:project_download_dockerfile", args=[project.id])
+        )
+
+        self.assertEqual(preview, download.content.decode("utf-8"))
+
+    def test_option_create_is_reflected_in_live_dockerfile_output(self):
+        """Dockerfile options should appear in the next live preview."""
         project = ConfigProject.objects.create(
             name="project", owner=self.user1, target_type="dockerfile"
         )
@@ -724,8 +776,8 @@ class ProjectCrudTests(TestCase):
             },
         )
         
-        project.refresh_from_db()
-        self.assertIn("RUN pip install -r requirements.txt", project.output_text)
+        output = self._get_live_output(project)
+        self.assertIn("RUN pip install -r requirements.txt", output)
         self.assertEqual(
             project.options.get(key="dockerfile_run").scope,
             ProjectOption.Scope.DOCKERFILE,
