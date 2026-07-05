@@ -2,7 +2,9 @@ import json
 import zipfile
 from io import BytesIO
 
+from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.staticfiles import finders
 from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -18,6 +20,54 @@ from .forms import (
 )
 from .models import ConfigProject, Service, Network, NamedVolume, ProjectOption
 from .yaml_builder import build_compose_yaml, build_dockerfile, build_output
+
+
+class FrontendAssetTests(TestCase):
+    """Frontend dependencies should be available through Django static files."""
+
+    static_assets = (
+        "css/app.css",
+        "vendor/alpinejs/alpine.min.js",
+        "vendor/codemirror/codemirror.css",
+        "vendor/codemirror/codemirror.js",
+        "vendor/codemirror/yaml.js",
+    )
+
+    def test_built_frontend_assets_are_discoverable(self):
+        for asset in self.static_assets:
+            with self.subTest(asset=asset):
+                self.assertIsNotNone(finders.find(asset))
+
+    def test_dashboard_uses_local_frontend_assets_only(self):
+        user = User.objects.create_user(
+            username="frontend-user",
+            password="password123",
+        )
+        project = ConfigProject.objects.create(
+            name="frontend-project",
+            owner=user,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("generator:project_detail", args=[project.id])
+        )
+        html = response.content.decode("utf-8")
+
+        for asset in self.static_assets:
+            self.assertContains(response, f"{settings.STATIC_URL}{asset}")
+        self.assertNotRegex(
+            html,
+            r'<(?:script|link)\b[^>]*(?:src|href)="https?://',
+        )
+
+    def test_tailwind_build_contains_project_components(self):
+        css_path = settings.BASE_DIR / "theme" / "static" / "css" / "app.css"
+        css = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(".form-control", css)
+        self.assertIn(".bg-cyan-600", css)
+        self.assertIn(".lg\\:grid-cols-3", css)
 
 
 class YamlBuilderComposeTests(TestCase):

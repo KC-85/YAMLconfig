@@ -1,9 +1,10 @@
 {% extends "generator/base.html" %}
+{% load static %}
 
 {% block title %}YAMLconfig Dashboard{% endblock %}
 
 {% block extra_head %}
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+	<link rel="stylesheet" href="{% static 'vendor/codemirror/codemirror.css' %}">
 	<style>
 		.yaml-ide-shell .CodeMirror {
 			height: auto;
@@ -469,8 +470,8 @@
 {% endblock %}
 
 {% block extra_scripts %}
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
+	<script src="{% static 'vendor/codemirror/codemirror.js' %}"></script>
+	<script src="{% static 'vendor/codemirror/yaml.js' %}"></script>
 	<script>
 		document.addEventListener('DOMContentLoaded', function() {
 			const source = document.getElementById('yaml-ide-source');

@@ -89,7 +89,6 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 _static_dirs = [
 	BASE_DIR / "theme" / "static",
-	BASE_DIR / "theme" / "static_src",
 ]
 STATICFILES_DIRS = [path for path in _static_dirs if path.exists()]
 
