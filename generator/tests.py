@@ -206,6 +206,129 @@ class ProjectCrudTests(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
+    def test_project_detail_lists_saved_service(self):
+        """A saved service should be rendered with its edit action."""
+        project = ConfigProject.objects.create(
+            name="service-list-project", owner=self.user1
+        )
+        service = Service.objects.create(
+            project=project,
+            name="visible-service",
+            image="regression/service:1",
+        )
+
+        self.client.force_login(self.user1)
+        response = self.client.get(
+            reverse("generator:project_detail", args=[project.id])
+        )
+
+        self.assertContains(response, "visible-service")
+        self.assertContains(response, "regression/service:1")
+        self.assertContains(
+            response,
+            reverse("generator:service_edit", args=[project.id, service.id]),
+        )
+        self.assertNotContains(response, "No services yet")
+
+    def test_project_detail_lists_saved_option(self):
+        """A saved project option should be rendered with its edit action."""
+        project = ConfigProject.objects.create(
+            name="option-list-project", owner=self.user1
+        )
+        option = ProjectOption.objects.create(
+            project=project,
+            key="dockerfile_run",
+            value="regression-install-command",
+        )
+
+        self.client.force_login(self.user1)
+        response = self.client.get(
+            reverse("generator:project_detail", args=[project.id])
+        )
+
+        self.assertContains(response, "dockerfile_run")
+        self.assertContains(response, "regression-install-command")
+        self.assertContains(
+            response,
+            reverse("generator:option_edit", args=[project.id, option.id]),
+        )
+        self.assertNotContains(response, "No build options configured")
+
+    def test_project_detail_lists_saved_network(self):
+        """A saved network should be rendered with its edit action."""
+        project = ConfigProject.objects.create(
+            name="network-list-project", owner=self.user1
+        )
+        network = Network.objects.create(
+            project=project,
+            name="visible-network",
+            driver="regression-network-driver",
+        )
+
+        self.client.force_login(self.user1)
+        response = self.client.get(
+            reverse("generator:project_detail", args=[project.id])
+        )
+
+        self.assertContains(response, "visible-network")
+        self.assertContains(response, "regression-network-driver")
+        self.assertContains(
+            response,
+            reverse("generator:network_edit", args=[project.id, network.id]),
+        )
+        self.assertNotContains(response, "No networks defined yet")
+
+    def test_project_detail_lists_saved_volume(self):
+        """A saved named volume should be rendered with its edit action."""
+        project = ConfigProject.objects.create(
+            name="volume-list-project", owner=self.user1
+        )
+        volume = NamedVolume.objects.create(
+            project=project,
+            name="visible-volume",
+            driver="regression-volume-driver",
+        )
+
+        self.client.force_login(self.user1)
+        response = self.client.get(
+            reverse("generator:project_detail", args=[project.id])
+        )
+
+        self.assertContains(response, "visible-volume")
+        self.assertContains(response, "regression-volume-driver")
+        self.assertContains(
+            response,
+            reverse("generator:volume_edit", args=[project.id, volume.id]),
+        )
+        self.assertNotContains(response, "No volumes defined yet")
+
+    def test_project_list_shows_component_counts(self):
+        """Project cards should show counts from the named relationships."""
+        project = ConfigProject.objects.create(
+            name="counted-project", owner=self.user1
+        )
+        Service.objects.create(project=project, name="service-one")
+        Service.objects.create(project=project, name="service-two")
+        Network.objects.create(project=project, name="network-one")
+        NamedVolume.objects.create(project=project, name="volume-one")
+
+        self.client.force_login(self.user1)
+        response = self.client.get(reverse("generator:project_list"))
+        html = response.content.decode("utf-8")
+
+        self.assertRegex(
+            html,
+            r"Services:</span>\s*<span[^>]*>\s*2\s*</span>",
+        )
+        self.assertRegex(
+            html,
+            r"Networks:</span>\s*<span[^>]*>\s*1\s*</span>",
+        )
+        self.assertRegex(
+            html,
+            r"Volumes:</span>\s*<span[^>]*>\s*1\s*</span>",
+        )
+
     def test_service_create_generates_output(self):
         """Test that creating a service regenerates project output."""
         project = ConfigProject.objects.create(
