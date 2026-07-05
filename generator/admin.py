@@ -19,8 +19,8 @@ class ServiceAdmin(admin.ModelAdmin):
 
 @admin.register(ProjectOption)
 class ProjectOptionAdmin(admin.ModelAdmin):
-    list_display = ("key", "project", "value")
-    list_filter = ("project",)
+    list_display = ("key", "scope", "project", "value")
+    list_filter = ("scope", "project")
     search_fields = ("key", "project__name", "value")
 
 

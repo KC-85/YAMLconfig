@@ -47,8 +47,9 @@ class ServiceForm(forms.ModelForm):
 class ProjectOptionForm(forms.ModelForm):
     class Meta:
         model = ProjectOption
-        fields = ("key", "value")
+        fields = ("scope", "key", "value")
         widgets = {
+            "scope": forms.Select(attrs={"class": "form-select"}),
             "key": forms.TextInput(attrs={"class": "form-control", "placeholder": "Option key"}),
             "value": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Option value"}),
         }

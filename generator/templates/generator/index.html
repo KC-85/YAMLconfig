@@ -306,7 +306,7 @@
 									<div class="flex items-center justify-between p-3 rounded border border-slate-200 hover:bg-slate-50 transition-colors">
 										<div>
 											<p class="font-medium text-slate-900">{{ option.key }}: <span class="text-slate-600">{{ option.value }}</span></p>
-											<p class="text-xs text-slate-500 mt-1">For dockerfile: {{ option.for_dockerfile|yesno:"Yes,No" }}</p>
+											<p class="text-xs text-slate-500 mt-1">{{ option.get_scope_display }}</p>
 										</div>
 										<div class="space-x-2">
 											<a href="{% url 'generator:option_edit' project.id option.id %}" class="text-cyan-600 hover:text-cyan-700 font-medium text-xs">Edit</a>

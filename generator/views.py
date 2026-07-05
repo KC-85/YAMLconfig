@@ -205,7 +205,7 @@ def option_create(request: HttpRequest, project_id: int) -> HttpResponse:
             messages.success(request, "Option created successfully.")
             return redirect("generator:project_detail", project_id=project.id)
     else:
-        form = ProjectOptionForm()
+        form = ProjectOptionForm(initial={"scope": project.target_type})
 
     return render(request, "generator/index.html", {"form": form, "project": project})
 
