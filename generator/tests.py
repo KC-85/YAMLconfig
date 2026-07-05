@@ -1,8 +1,10 @@
-from django.test import TestCase, Client
-from django.contrib.auth.models import User
-from django.urls import reverse
+import json
 import zipfile
 from io import BytesIO
+
+from django.contrib.auth.models import User
+from django.test import Client, TestCase
+from django.urls import reverse
 
 from .models import ConfigProject, Service, Network, NamedVolume, ProjectOption
 from .yaml_builder import build_compose_yaml, build_dockerfile, build_output
@@ -150,6 +152,151 @@ class YamlBuilderDockerfileTests(TestCase):
         }
         output = build_dockerfile(project)
         self.assertIn('CMD ["sh", "-c", "python manage.py runserver"]', output)
+
+    def test_build_dockerfile_uses_default_image_when_service_image_is_blank(self):
+        """A blank service image must not produce an empty FROM instruction."""
+        project = {
+            "services": [{"name": "web", "image": "   "}],
+        }
+
+        output = build_dockerfile(project)
+
+        self.assertIn("FROM python:3.12-slim", output)
+        self.assertNotIn("FROM \n", output)
+
+    def test_build_dockerfile_rejects_multiline_single_line_instructions(self):
+        """FROM, WORKDIR, and COPY values cannot inject extra instructions."""
+        project = {
+            "services": [{"name": "web", "image": "python:3.12"}],
+            "options": [
+                {"key": "dockerfile_from", "value": "alpine:3\nRUN unsafe-from"},
+                {"key": "dockerfile_workdir", "value": "/app\nRUN unsafe-workdir"},
+                {"key": "dockerfile_copy", "value": ". .\nRUN unsafe-copy"},
+            ],
+        }
+
+        output = build_dockerfile(project)
+
+        self.assertIn("FROM python:3.12", output)
+        self.assertIn("WORKDIR /app", output)
+        self.assertIn("COPY . .", output)
+        self.assertNotIn("unsafe-", output)
+
+    def test_build_dockerfile_selects_named_primary_service(self):
+        """dockerfile_service should control service-derived defaults."""
+        project = {
+            "services": [
+                {
+                    "name": "database",
+                    "image": "postgres:16",
+                    "ports": ["5432:5432"],
+                },
+                {
+                    "name": "web",
+                    "image": "python:3.12-slim",
+                    "ports": ["8000:8000"],
+                    "command": "python app.py",
+                },
+            ],
+            "options": [{"key": "dockerfile_service", "value": "web"}],
+        }
+
+        output = build_dockerfile(project)
+
+        self.assertIn("FROM python:3.12-slim", output)
+        self.assertIn("EXPOSE 8000", output)
+        self.assertIn('CMD ["sh", "-c", "python app.py"]', output)
+        self.assertNotIn("postgres:16", output)
+        self.assertNotIn("EXPOSE 5432", output)
+
+    def test_build_dockerfile_prefers_a_service_with_an_image(self):
+        """Fallback selection should skip services that cannot provide FROM."""
+        project = {
+            "services": [
+                {"name": "empty", "image": ""},
+                {"name": "worker", "image": "python:3.13-slim"},
+            ],
+        }
+
+        output = build_dockerfile(project)
+
+        self.assertIn("FROM python:3.13-slim", output)
+
+    def test_build_dockerfile_parses_expose_option_text(self):
+        """Text-backed project options should support multiple exposed ports."""
+        project = {
+            "services": [],
+            "options": [
+                {
+                    "key": "dockerfile_expose",
+                    "value": '8000, 8443/UDP, ["9000", "9001/tcp"]',
+                }
+            ],
+        }
+
+        output = build_dockerfile(project)
+
+        self.assertIn("EXPOSE 8000", output)
+        self.assertIn("EXPOSE 8443/udp", output)
+        self.assertIn("EXPOSE 9000", output)
+        self.assertIn("EXPOSE 9001/tcp", output)
+
+    def test_build_dockerfile_normalizes_and_filters_service_ports(self):
+        """Host mappings become container ports and invalid ports are omitted."""
+        project = {
+            "services": [
+                {
+                    "name": "web",
+                    "image": "python:3.12",
+                    "ports": [
+                        "127.0.0.1:8080:80/tcp",
+                        "8443:443/UDP",
+                        {"target": 9000},
+                        "70000:70000",
+                        "not-a-port",
+                        "8080:80/tcp",
+                    ],
+                }
+            ],
+        }
+
+        output = build_dockerfile(project)
+
+        self.assertEqual(output.count("EXPOSE 80/tcp"), 1)
+        self.assertIn("EXPOSE 443/udp", output)
+        self.assertIn("EXPOSE 9000", output)
+        self.assertNotIn("EXPOSE 70000", output)
+        self.assertNotIn("EXPOSE not-a-port", output)
+
+    def test_build_dockerfile_emits_valid_json_cmd(self):
+        """String commands should remain valid JSON after escaping."""
+        command = 'python -c "print(\\"ready\\")"\npython app.py'
+        project = {
+            "services": [{"name": "web", "image": "python:3.12", "command": command}],
+        }
+
+        output = build_dockerfile(project)
+        cmd_line = next(line for line in output.splitlines() if line.startswith("CMD "))
+
+        self.assertEqual(json.loads(cmd_line.removeprefix("CMD ")), ["sh", "-c", command])
+
+    def test_build_dockerfile_splits_multiline_run_commands(self):
+        """Each non-empty line in a text option should become a RUN instruction."""
+        project = {
+            "services": [],
+            "options": [
+                {
+                    "key": "dockerfile_run",
+                    "value": "apt-get update\n\napt-get install -y curl",
+                }
+            ],
+        }
+
+        output = build_dockerfile(project)
+
+        self.assertIn("RUN apt-get update", output)
+        self.assertIn("RUN apt-get install -y curl", output)
+        self.assertEqual(output.count("RUN "), 2)
 
 
 class ProjectCrudTests(TestCase):
